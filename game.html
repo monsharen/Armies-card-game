@@ -3,73 +3,81 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Play — Armies</title>
+  <title>Play — Four Armies</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <nav>
-    <a class="brand" href="index.html">⚔️ Armies</a>
+    <a class="brand" href="index.html">🃏 Armies</a>
     <a class="navlink" href="index.html">Home</a>
     <a class="navlink active" href="game.html">Play</a>
     <a class="navlink" href="rules.html">How to Play</a>
-    <a class="navlink" href="cards.html">Compendium</a>
+    <a class="navlink" href="reference.html">Print &amp; Play</a>
   </nav>
 
   <main>
-    <div class="game-layout">
-      <div>
-        <div class="board">
-          <div class="board-header">
-            <h2>🚩 Your Realm</h2>
-            <div class="board-stats">
-              <span class="stat">🌾 <span id="statFood"></span></span>
-              <span class="stat">⛏️ <span id="statOre"></span></span>
-              <span class="stat">🪙 <span id="statGold"></span></span>
-              <span class="stat">💪 <span id="statPower"></span> power</span>
-              <span class="stat">🏅 <span id="statGlory"></span> glory</span>
-            </div>
-          </div>
-          <div id="board"></div>
-        </div>
-
-        <div class="hand-area">
-          <h3>Build &amp; Recruit — click to build (uses your turn)</h3>
-          <div id="buildMenu" class="hand-cards"></div>
-        </div>
+    <div id="setup">
+      <h2>Muster the Armies</h2>
+      <p class="seat-note">Four armies always fight — ♥ Crimson Host, ♠ Black Legion,
+      ♦ Golden Company and ♣ Green Banner. Any army without a player at the table runs
+      on the automated flip-two-cards script, and turns alternate around the board.</p>
+      <div class="cta-row">
+        <button class="btn primary big" onclick="newGame(1)">1 Player<br><small>vs 3 automated armies</small></button>
+        <button class="btn primary big" onclick="newGame(2)">2 Players<br><small>+ 2 automated armies</small></button>
+        <button class="btn big" onclick="newGame(3)">3 Players<br><small>+ 1 automated army</small></button>
+        <button class="btn big" onclick="newGame(4)">4 Players<br><small>no automation</small></button>
       </div>
+    </div>
 
-      <div class="sidebar">
-        <div class="panel">
-          <h3>Campaign</h3>
-          <div id="roundTrack" class="round-track"></div>
-          <div id="turnBanner" class="turn-banner"></div>
+    <div id="gameArea" class="hidden">
+      <div class="game-layout">
+        <div>
+          <div class="board-wrap">
+            <div id="board"></div>
+          </div>
+          <div id="handArea"></div>
         </div>
 
-        <div class="panel invasion">
-          <h3>⚔️ Next Invasion</h3>
-          <div id="invasionPanel" class="invasion-info"></div>
-        </div>
+        <div class="sidebar">
+          <div class="panel">
+            <h3>Glory</h3>
+            <div id="scoreboard"></div>
+          </div>
 
-        <div class="panel">
-          <h3>Chronicle</h3>
-          <div id="log" class="log-panel"></div>
-        </div>
+          <div class="panel">
+            <h3>Turn</h3>
+            <div id="turnPanel"></div>
+          </div>
 
-        <div class="panel">
-          <button class="btn" onclick="startGame()">🔄 New Campaign</button>
+          <div class="panel">
+            <h3>Chronicle</h3>
+            <div id="log" class="log-panel"></div>
+          </div>
+
+          <div class="panel">
+            <button class="btn" onclick="backToSetup()">🔄 New War</button>
+          </div>
         </div>
       </div>
     </div>
   </main>
 
+  <div id="handoff" class="modal-backdrop hidden">
+    <div class="modal">
+      <p id="handoffText"></p>
+      <button class="btn primary big" onclick="revealTurn()">Begin turn</button>
+    </div>
+  </div>
+
   <div id="endModal" class="modal-backdrop hidden">
     <div class="modal">
-      <h2>The Campaign Ends</h2>
+      <h2>The War Ends</h2>
       <p id="endVerdict" class="verdict"></p>
       <table id="endTable"></table>
-      <div class="cta-row" style="display:flex;gap:0.8rem;justify-content:center">
-        <button class="btn primary" onclick="hideEndModal(); startGame()">⚔️ New Campaign</button>
-        <button class="btn" onclick="hideEndModal()">Inspect the Realm</button>
+      <div style="display:flex;gap:0.8rem;justify-content:center">
+        <button class="btn primary" onclick="hideEndModal(); newGame(ui.numHumans)">⚔️ Rematch</button>
+        <button class="btn" onclick="backToSetup()">Change players</button>
+        <button class="btn" onclick="hideEndModal()">Inspect the field</button>
       </div>
     </div>
   </div>
