@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Play — Armies</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <a class="brand" href="index.html">⚔️ Armies</a>
+    <a class="navlink" href="index.html">Home</a>
+    <a class="navlink active" href="game.html">Play</a>
+    <a class="navlink" href="rules.html">How to Play</a>
+    <a class="navlink" href="cards.html">Compendium</a>
+  </nav>
+
+  <main>
+    <div class="game-layout">
+      <div>
+        <div class="board">
+          <div class="board-header">
+            <h2>🚩 Your Realm</h2>
+            <div class="board-stats">
+              <span class="stat">🌾 <span id="statFood"></span></span>
+              <span class="stat">⛏️ <span id="statOre"></span></span>
+              <span class="stat">🪙 <span id="statGold"></span></span>
+              <span class="stat">💪 <span id="statPower"></span> power</span>
+              <span class="stat">🏅 <span id="statGlory"></span> glory</span>
+            </div>
+          </div>
+          <div id="board"></div>
+        </div>
+
+        <div class="hand-area">
+          <h3>Build &amp; Recruit — click to build (uses your turn)</h3>
+          <div id="buildMenu" class="hand-cards"></div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="panel">
+          <h3>Campaign</h3>
+          <div id="roundTrack" class="round-track"></div>
+          <div id="turnBanner" class="turn-banner"></div>
+        </div>
+
+        <div class="panel invasion">
+          <h3>⚔️ Next Invasion</h3>
+          <div id="invasionPanel" class="invasion-info"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Chronicle</h3>
+          <div id="log" class="log-panel"></div>
+        </div>
+
+        <div class="panel">
+          <button class="btn" onclick="startGame()">🔄 New Campaign</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="endModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h2>The Campaign Ends</h2>
+      <p id="endVerdict" class="verdict"></p>
+      <table id="endTable"></table>
+      <div class="cta-row" style="display:flex;gap:0.8rem;justify-content:center">
+        <button class="btn primary" onclick="hideEndModal(); startGame()">⚔️ New Campaign</button>
+        <button class="btn" onclick="hideEndModal()">Inspect the Realm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script src="js/cards.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How to Play — Armies</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <a class="brand" href="index.html">⚔️ Armies</a>
+    <a class="navlink" href="index.html">Home</a>
+    <a class="navlink" href="game.html">Play</a>
+    <a class="navlink active" href="rules.html">How to Play</a>
+    <a class="navlink" href="cards.html">Compendium</a>
+  </nav>
+
+  <main class="prose">
+    <h1>How to Play</h1>
+    <p><strong>Armies</strong> is a single-player, turn-based game of resource engine
+    building. Over <strong>15 turns</strong> you build up your realm: farms and mines feed
+    your economy, your economy pays for an army, and your army must repel
+    <strong>three enemy invasions</strong>. When the campaign ends, your score decides how
+    history remembers you.</p>
+
+    <h2>Your realm</h2>
+    <p>Your realm has three rows, each holding up to <strong>5 units or buildings</strong>:</p>
+    <table>
+      <tr><th>Row</th><th>Its action</th><th>Base yield</th></tr>
+      <tr><td>🌾 Farmlands</td><td><strong>Harvest</strong></td><td>+1 Food</td></tr>
+      <tr><td>⛏️ Mines</td><td><strong>Mine</strong></td><td>+1 Ore</td></tr>
+      <tr><td>⚔️ War Camp</td><td><strong>Patrol</strong></td><td>+1 Gold</td></tr>
+    </table>
+    <p>This is the engine: everything you build joins one row, and most things add a bonus
+    every time that row's action is taken. A full Farmlands row can harvest 6+ Food in one
+    action. The more you build, the stronger every later turn becomes.</p>
+    <p>You start with <strong>2 Food 🌾</strong> and <strong>1 Ore ⛏️</strong>.</p>
+
+    <h2>Taking a turn</h2>
+    <p>Each turn, do exactly <strong>one</strong> of these four things:</p>
+    <table>
+      <tr><th>Action</th><th>What happens</th></tr>
+      <tr><td>🏗️ <strong>Build</strong></td><td>Pick anything from the build menu, pay its cost, and place it in its row. Its power joins your army immediately; its bonus strengthens that row's action for the rest of the game.</td></tr>
+      <tr><td>🌾 <strong>Harvest</strong></td><td>Gain 1 Food, plus every Farmlands bonus.</td></tr>
+      <tr><td>⛏️ <strong>Mine</strong></td><td>Gain 1 Ore, plus every Mines bonus.</td></tr>
+      <tr><td>⚔️ <strong>Patrol</strong></td><td>Gain 1 Gold, plus every War Camp bonus.</td></tr>
+    </table>
+    <p>Supplies are limited, Catan-style: each unit type has a fixed stock
+    (only one Warlord exists!). The build menu shows how many of each remain.</p>
+
+    <h2>Resources</h2>
+    <table>
+      <tr><th>Resource</th><th>Main source</th><th>What it buys</th></tr>
+      <tr><td>🌾 Food</td><td>Harvest action + farm bonuses</td><td>Soldiers and workers</td></tr>
+      <tr><td>⛏️ Ore</td><td>Mine action + mine bonuses</td><td>Buildings, weapons, siege gear</td></tr>
+      <tr><td>🪙 Gold</td><td>Patrol action + a few rare bonuses</td><td>Elite units like the Knight and Warlord</td></tr>
+    </table>
+
+    <h2>The three invasions ⚔️</h2>
+    <p>Enemy armies attack at the end of turns <strong>5, 10 and 15</strong>. Their strength
+    is rolled at the start of the campaign and your scouts report it in advance — so you
+    always know exactly what's coming, and when.</p>
+    <table>
+      <tr><th>Invasion</th><th>Enemy strength</th><th>Repelled: glory</th><th>Defeated: penalty</th></tr>
+      <tr><td>End of turn 5</td><td>3–5</td><td>+5 🏅</td><td rowspan="3">Raiders pillage <strong>half of every resource</strong> you hold (rounded up)</td></tr>
+      <tr><td>End of turn 10</td><td>9–13</td><td>+7 🏅</td></tr>
+      <tr><td>End of turn 15</td><td>16–22</td><td>+10 🏅</td></tr>
+    </table>
+    <p>You repel an invasion if your total army power is <strong>equal to or greater</strong>
+    than the enemy's strength. Losing never ends the campaign — but pillaged stores can
+    wreck your plans.</p>
+
+    <h2>Scoring</h2>
+    <p>After the final invasion, your score is totalled:</p>
+    <p style="text-align:center"><strong>💪 Army power &nbsp;+&nbsp; 🏅 War glory &nbsp;+&nbsp; 📦 1 point per 3 leftover resources</strong></p>
+    <table>
+      <tr><th>Score</th><th>Rank</th></tr>
+      <tr><td>55+</td><td>👑 Legendary Conqueror</td></tr>
+      <tr><td>45–54</td><td>⚔️ Warlord</td></tr>
+      <tr><td>35–44</td><td>🛡️ Battle Captain</td></tr>
+      <tr><td>25–34</td><td>🗡️ Sergeant</td></tr>
+      <tr><td>15–24</td><td>🥾 Footsoldier</td></tr>
+      <tr><td>0–14</td><td>🍲 Camp Follower</td></tr>
+    </table>
+    <p>Your personal best is saved in your browser.</p>
+
+    <h2>Strategy tips</h2>
+    <div class="tip">🌱 <strong>Engine first, army second.</strong> Cheap production
+    (Peasant Levy, Prospector, Grain Farm) built early pays for itself many times over.
+    Raw power built late still counts fully at scoring.</div>
+    <div class="tip">⚔️ <strong>But respect the deadlines.</strong> The scouts tell you the
+    exact enemy strength — count backwards from each invasion and make sure the power gap
+    is closed in time. A last-minute Footman has saved many a realm.</div>
+    <div class="tip">🪙 <strong>Plan your Gold.</strong> Patrol is slow — a Gold Mine, Ox
+    Wagon or Quartermaster working several turns in advance is what pays for a Knight or
+    the Warlord.</div>
+    <div class="tip">🔥 <strong>Losing is (sometimes) an option.</strong> If an invasion is
+    unwinnable, spend your stores before it hits — raiders can't pillage what you've
+    already turned into buildings.</div>
+
+    <p><a class="btn primary" href="game.html">▶ Start a Campaign</a></p>
+  </main>
+
+  <footer>Armies — a browser game of resource engine building.</footer>
+</body>
+</html>
