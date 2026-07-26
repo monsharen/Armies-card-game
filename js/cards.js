@@ -11,10 +11,10 @@
 const SUITS = ['hearts', 'spades', 'diamonds', 'clubs']; // clockwise seating & turn order
 
 const SUIT_META = {
-  hearts:   { symbol: '♥', color: 'red',   army: 'Crimson Host',   tint: '#c04545' },
-  spades:   { symbol: '♠', color: 'black', army: 'Black Legion',   tint: '#5d6675' },
-  diamonds: { symbol: '♦', color: 'red',   army: 'Golden Company', tint: '#c99a2c' },
-  clubs:    { symbol: '♣', color: 'black', army: 'Green Banner',   tint: '#4c7a3d' },
+  hearts:   { symbol: '♥', color: 'red',   army: 'Hearts',   tint: '#c04545' },
+  spades:   { symbol: '♠', color: 'black', army: 'Spades',   tint: '#5d6675' },
+  diamonds: { symbol: '♦', color: 'red',   army: 'Diamonds', tint: '#c99a2c' },
+  clubs:    { symbol: '♣', color: 'black', army: 'Clover',   tint: '#4c7a3d' },
 };
 
 const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
