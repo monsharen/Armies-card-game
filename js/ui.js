@@ -1,4 +1,4 @@
-/* Four Armies — game page UI. Renders the engine state and wires up input.
+/* Four Banners — game page UI. Renders the engine state and wires up input.
  * The engine is pure; everything DOM lives here. */
 
 let game = null;
