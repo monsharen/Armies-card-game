@@ -1,6 +1,6 @@
-# 🃏 Four Banners
+# 🃏 Four Armies
 
-A war game for **one regular 52-card deck** — four suit-armies race to capture and hold
+*"Armies" for short.* A war game for **one regular 52-card deck** — four suit-armies race to capture and hold
 a central citadel. Playable in the browser for 1–4 players (any army without a player
 runs on a deterministic script), and equally playable on a kitchen table with a real
 deck, pen and paper.

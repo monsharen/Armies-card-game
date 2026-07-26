@@ -1,4 +1,4 @@
-/* Four Banners — standard 52-card deck definitions.
+/* Four Armies — standard 52-card deck definitions.
  * Each suit is an army. In your own suit:
  *   2–10  soldier (strength = pip value)
  *   A     champion (strength 11)

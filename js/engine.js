@@ -1,4 +1,4 @@
-/* Four Banners — pure game engine. No DOM access, so it can be unit-tested in
+/* Four Armies — pure game engine. No DOM access, so it can be unit-tested in
  * Node and driven by either the UI or headless simulations.
  *
  * Board: a central Citadel with four roads of ROAD_LEN spaces, one per suit.
