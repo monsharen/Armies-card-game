@@ -3,104 +3,109 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>How to Play — Armies</title>
+  <title>How to Play — Four Banners</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <nav>
-    <a class="brand" href="index.html">⚔️ Armies</a>
+    <a class="brand" href="index.html">🃏 Four Banners</a>
     <a class="navlink" href="index.html">Home</a>
     <a class="navlink" href="game.html">Play</a>
     <a class="navlink active" href="rules.html">How to Play</a>
-    <a class="navlink" href="cards.html">Compendium</a>
+    <a class="navlink" href="reference.html">Print &amp; Play</a>
   </nav>
 
   <main class="prose">
     <h1>How to Play</h1>
-    <p><strong>Armies</strong> is a single-player, turn-based game of resource engine
-    building. Over <strong>15 turns</strong> you build up your realm: farms and mines feed
-    your economy, your economy pays for an army, and your army must repel
-    <strong>three enemy invasions</strong>. When the campaign ends, your score decides how
-    history remembers you.</p>
+    <p><strong>Four Banners</strong> is a war game for one standard 52-card deck. Four
+    armies — <span class="red">♥ Crimson Host</span>, ♠ Black Legion,
+    <span class="red">♦ Golden Company</span> and ♣ Green Banner — race down their roads to
+    capture the central <strong>Citadel</strong> and hold it through two seasons of war.
+    1–4 players; every army without a player runs itself with a simple scripted turn.</p>
 
-    <h2>Your realm</h2>
-    <p>Your realm has three rows, each holding up to <strong>5 units or buildings</strong>:</p>
+    <h2>The board</h2>
+    <p>A Citadel in the middle; four roads of <strong>3 spaces</strong> radiating out to
+    each army's <strong>camp</strong>. Cards are the units: a road space holds at most one
+    card, the camp holds any number. (On a real table, sketch the cross on paper or just
+    lay cards in rows — see <a href="reference.html">Print &amp; Play</a>.)</p>
+
+    <h2>What your cards mean</h2>
+    <p>Cards of <strong>your own suit</strong> are your army:</p>
     <table>
-      <tr><th>Row</th><th>Its action</th><th>Base yield</th></tr>
-      <tr><td>🌾 Farmlands</td><td><strong>Harvest</strong></td><td>+1 Food</td></tr>
-      <tr><td>⛏️ Mines</td><td><strong>Mine</strong></td><td>+1 Ore</td></tr>
-      <tr><td>⚔️ War Camp</td><td><strong>Patrol</strong></td><td>+1 Gold</td></tr>
+      <tr><th>Card</th><th>Role</th><th>Strength</th></tr>
+      <tr><td>2–10</td><td>Soldier</td><td>Pip value</td></tr>
+      <tr><td>Ace</td><td>Champion</td><td>11</td></tr>
+      <tr><td>Jack</td><td>Raider — one-shot attack on any enemy road unit, <em>or</em> deploy as a soldier</td><td>11</td></tr>
+      <tr><td>Queen</td><td>Banner — stays in camp; <strong>all your units fight at +2</strong></td><td>—</td></tr>
+      <tr><td>King</td><td>General — stays in camp; <strong>your marches move up to 2 spaces</strong></td><td>—</td></tr>
     </table>
-    <p>This is the engine: everything you build joins one row, and most things add a bonus
-    every time that row's action is taken. A full Farmlands row can harvest 6+ Food in one
-    action. The more you build, the stronger every later turn becomes.</p>
-    <p>You start with <strong>2 Food 🌾</strong> and <strong>1 Ore ⛏️</strong>.</p>
+    <p>Cards of <strong>any other suit</strong> are <strong>supply</strong> — you discard
+    one to pay for each march. About three-quarters of what you draw is supply, so soldiers
+    are precious and movement is cheap.</p>
 
-    <h2>Taking a turn</h2>
-    <p>Each turn, do exactly <strong>one</strong> of these four things:</p>
+    <h2>Setup</h2>
+    <p>Shuffle the deck. Deal <strong>4 cards</strong> to each human player (automated
+    armies hold no hand). Flip one card onto the Citadel — that's the neutral mercenary
+    garrison, defending at its printed strength (J=11, Q=12, K=13, A=11). Turn order runs
+    ♥ → ♠ → ♦ → ♣; with two players you sit at ♥ and ♦, so play alternates human and
+    automated army.</p>
+
+    <h2>A player turn</h2>
+    <p><strong>1. Draw 2 cards</strong> (hand limit 7 — discard down after drawing).<br>
+    <strong>2. Take up to 2 actions</strong>, any mix of:</p>
     <table>
       <tr><th>Action</th><th>What happens</th></tr>
-      <tr><td>🏗️ <strong>Build</strong></td><td>Pick anything from the build menu, pay its cost, and place it in its row. Its power joins your army immediately; its bonus strengthens that row's action for the rest of the game.</td></tr>
-      <tr><td>🌾 <strong>Harvest</strong></td><td>Gain 1 Food, plus every Farmlands bonus.</td></tr>
-      <tr><td>⛏️ <strong>Mine</strong></td><td>Gain 1 Ore, plus every Mines bonus.</td></tr>
-      <tr><td>⚔️ <strong>Patrol</strong></td><td>Gain 1 Gold, plus every War Camp bonus.</td></tr>
+      <tr><td>🛡️ <strong>Deploy</strong></td><td>Play a card of your suit: soldiers, Champion and Jack go to your camp; Queen and King take their camp posts.</td></tr>
+      <tr><td>🥾 <strong>March</strong></td><td>Discard any off-suit card; one of your units advances 1 space (up to 2 with your King). Camp → road, road → road, or gate → <strong>assault the Citadel</strong>. No jumping over occupied spaces.</td></tr>
+      <tr><td>🗡️ <strong>Raid</strong></td><td>Play your Jack at any enemy unit on any road. Fight at 11 (+2 with your Banner). Win or lose, the Jack is discarded — raiders always withdraw.</td></tr>
     </table>
-    <p>Supplies are limited, Catan-style: each unit type has a fixed stock
-    (only one Warlord exists!). The build menu shows how many of each remain.</p>
+    <p>You may also hold position (end your turn early).</p>
 
-    <h2>Resources</h2>
-    <table>
-      <tr><th>Resource</th><th>Main source</th><th>What it buys</th></tr>
-      <tr><td>🌾 Food</td><td>Harvest action + farm bonuses</td><td>Soldiers and workers</td></tr>
-      <tr><td>⛏️ Ore</td><td>Mine action + mine bonuses</td><td>Buildings, weapons, siege gear</td></tr>
-      <tr><td>🪙 Gold</td><td>Patrol action + a few rare bonuses</td><td>Elite units like the Knight and Warlord</td></tr>
-    </table>
+    <h2>Battles</h2>
+    <p>One comparison: <strong>attacker strength vs. defender strength</strong>, each +2 if
+    their Queen is in camp. <strong>Defender wins ties.</strong> The loser's card goes to
+    the discard pile. A unit that wins an assault enters the Citadel and becomes the new
+    garrison; its army scores <strong>+5 glory</strong>. Winning any other battle — a raid,
+    or defending — scores <strong>+1 glory</strong>.</p>
 
-    <h2>The three invasions ⚔️</h2>
-    <p>Enemy armies attack at the end of turns <strong>5, 10 and 15</strong>. Their strength
-    is rolled at the start of the campaign and your scouts report it in advance — so you
-    always know exactly what's coming, and when.</p>
+    <h2>Automated armies</h2>
+    <p>An automated army's turn is two card flips off the deck, resolved one at a time —
+    any player can run it in seconds:</p>
     <table>
-      <tr><th>Invasion</th><th>Enemy strength</th><th>Repelled: glory</th><th>Defeated: penalty</th></tr>
-      <tr><td>End of turn 5</td><td>3–5</td><td>+5 🏅</td><td rowspan="3">Raiders pillage <strong>half of every resource</strong> you hold (rounded up)</td></tr>
-      <tr><td>End of turn 10</td><td>9–13</td><td>+7 🏅</td></tr>
-      <tr><td>End of turn 15</td><td>16–22</td><td>+10 🏅</td></tr>
+      <tr><th>Flip</th><th>The army…</th></tr>
+      <tr><td>Its own suit</td><td>Deploys it: soldiers/Ace to camp; Q and K take their posts; a <strong>Jack raids immediately</strong> — the enemy unit nearest the Citadel (tie: strongest, then clockwise) — or joins the camp if there's nothing to raid.</td></tr>
+      <tr><td>Any other suit</td><td><strong>Marches</strong>: its frontmost unit advances as far as it can (assaulting the Citadel from the gate); if no road unit can move, its strongest camp unit steps out; with no units at all, the supply is wasted.</td></tr>
     </table>
-    <p>You repel an invasion if your total army power is <strong>equal to or greater</strong>
-    than the enemy's strength. Losing never ends the campaign — but pillaged stores can
-    wreck your plans.</p>
+    <p>No decisions, fully deterministic — and relentless: automated armies always come
+    down the road at you.</p>
 
-    <h2>Scoring</h2>
-    <p>After the final invasion, your score is totalled:</p>
-    <p style="text-align:center"><strong>💪 Army power &nbsp;+&nbsp; 🏅 War glory &nbsp;+&nbsp; 📦 1 point per 3 leftover resources</strong></p>
+    <h2>Seasons, glory and winning</h2>
+    <p>When the deck runs out, the <strong>season ends</strong>: whoever holds the Citadel
+    scores <strong>+3 glory</strong>, the discard pile is reshuffled, and a second season is
+    played. When the deck runs out again, the war is over — <strong>most glory wins</strong>.</p>
     <table>
-      <tr><th>Score</th><th>Rank</th></tr>
-      <tr><td>55+</td><td>👑 Legendary Conqueror</td></tr>
-      <tr><td>45–54</td><td>⚔️ Warlord</td></tr>
-      <tr><td>35–44</td><td>🛡️ Battle Captain</td></tr>
-      <tr><td>25–34</td><td>🗡️ Sergeant</td></tr>
-      <tr><td>15–24</td><td>🥾 Footsoldier</td></tr>
-      <tr><td>0–14</td><td>🍲 Camp Follower</td></tr>
+      <tr><th>Deed</th><th>Glory</th></tr>
+      <tr><td>Capture the Citadel</td><td>+5 🏅</td></tr>
+      <tr><td>Hold the Citadel at season's end</td><td>+3 🏅</td></tr>
+      <tr><td>Win a raid or a defense</td><td>+1 🏅</td></tr>
     </table>
-    <p>Your personal best is saved in your browser.</p>
 
     <h2>Strategy tips</h2>
-    <div class="tip">🌱 <strong>Engine first, army second.</strong> Cheap production
-    (Peasant Levy, Prospector, Grain Farm) built early pays for itself many times over.
-    Raw power built late still counts fully at scoring.</div>
-    <div class="tip">⚔️ <strong>But respect the deadlines.</strong> The scouts tell you the
-    exact enemy strength — count backwards from each invasion and make sure the power gap
-    is closed in time. A last-minute Footman has saved many a realm.</div>
-    <div class="tip">🪙 <strong>Plan your Gold.</strong> Patrol is slow — a Gold Mine, Ox
-    Wagon or Quartermaster working several turns in advance is what pays for a Knight or
-    the Warlord.</div>
-    <div class="tip">🔥 <strong>Losing is (sometimes) an option.</strong> If an invasion is
-    unwinnable, spend your stores before it hits — raiders can't pillage what you've
-    already turned into buildings.</div>
+    <div class="tip">👑 <strong>Get your court out early.</strong> The Queen's +2 swings
+    almost every battle, and the King's double marches nearly halve your supply costs.
+    They're worth an action the moment you draw them.</div>
+    <div class="tip">🏰 <strong>The Citadel compounds.</strong> +5 to take it, +3 per
+    season to hold it, +1 for every assault you repel — and your Queen's +2 defends it.
+    Garrison something big.</div>
+    <div class="tip">🗡️ <strong>Save the Jack for a tempo strike.</strong> Raiding the
+    unit at an enemy's gate just before their assault wastes several of their turns. Raiding
+    a 3 by the camp wastes yours.</div>
+    <div class="tip">🥾 <strong>Small soldiers screen.</strong> A 2 at your gate can't take
+    the Citadel — but as raid bait and a road-blocker it buys your real column time.</div>
 
-    <p><a class="btn primary" href="game.html">▶ Start a Campaign</a></p>
+    <p><a class="btn primary" href="game.html">▶ Start the War</a></p>
   </main>
 
-  <footer>Armies — a browser game of resource engine building.</footer>
+  <footer>Four Banners — a browser war game playable with a regular deck, pen and paper.</footer>
 </body>
 </html>

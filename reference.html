@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Print &amp; Play — Four Banners</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav>
+    <a class="brand" href="index.html">🃏 Four Banners</a>
+    <a class="navlink" href="index.html">Home</a>
+    <a class="navlink" href="game.html">Play</a>
+    <a class="navlink" href="rules.html">How to Play</a>
+    <a class="navlink active" href="reference.html">Print &amp; Play</a>
+  </nav>
+
+  <main class="prose">
+    <p class="no-print"><button class="btn primary" onclick="window.print()">🖨️ Print this sheet</button>
+    — one page, everything you need at the table.</p>
+
+    <h1>Four Banners — Reference Sheet</h1>
+    <p><strong>Needs:</strong> one 52-card deck · pen &amp; paper for the glory tally ·
+    a sketched board (below) or just lay cards in rows. 1–4 players; unplayed armies run
+    the automated script. Turn order ♥ → ♠ → ♦ → ♣ (2 players sit at ♥ and ♦).</p>
+
+    <h2>Board (sketch this)</h2>
+    <pre style="line-height:1.3">
+                 [♠ camp]
+                 [ 1 ]
+                 [ 2 ]
+                 [ 3 ]  &lt;- gate
+[♥camp][1][2][3] CITADEL [3][2][1][♦camp]
+                 [ 3 ]
+                 [ 2 ]
+                 [ 1 ]
+                 [♣ camp]
+    </pre>
+    <p>One card per road space; camps unlimited. <strong>Setup:</strong> deal 4 to each
+    human; flip 1 card onto the Citadel as the neutral garrison.</p>
+
+    <h2>Your suit</h2>
+    <table>
+      <tr><th>2–10</th><td>Soldier (strength = pips)</td><th>A</th><td>Champion (11)</td></tr>
+      <tr><th>J</th><td>Raider (11): one-shot attack on any enemy road unit, then discard — or deploy as a soldier</td>
+          <th>Q / K</th><td>Camp posts. Q: all your units +2 in battle. K: marches move up to 2 spaces</td></tr>
+    </table>
+    <p><strong>Other suits = supply</strong>: discard one to pay for each march.</p>
+
+    <h2>Player turn</h2>
+    <ol>
+      <li><strong>Draw 2</strong> (hand limit 7; discard down).</li>
+      <li><strong>Up to 2 actions</strong>: <em>Deploy</em> a card of your suit ·
+      <em>March</em> (discard supply; 1 space, 2 with King; gate → assault Citadel; no jumping) ·
+      <em>Raid</em> with your Jack.</li>
+    </ol>
+
+    <h2>Battle</h2>
+    <p>Attacker vs. defender strength, each +2 with their Queen. <strong>Defender wins
+    ties.</strong> Loser discarded. Assault winner becomes the garrison.</p>
+
+    <h2>Automated army turn — flip 2, resolve in order</h2>
+    <table>
+      <tr><th>Own suit</th><td>Deploy to camp (Q/K to posts). Jack: raid the enemy unit nearest the Citadel (tie: strongest, then clockwise); no target → camp.</td></tr>
+      <tr><th>Other suit</th><td>March: frontmost unit advances as far as it can (gate → assault). No road unit can move → strongest camp unit steps out. No units → wasted.</td></tr>
+    </table>
+
+    <h2>Glory (tally on paper)</h2>
+    <table>
+      <tr><th>Capture the Citadel</th><td>+5</td>
+          <th>Hold it at season's end</th><td>+3</td>
+          <th>Win a raid / defense</th><td>+1</td></tr>
+    </table>
+    <p><strong>Seasons:</strong> deck empty → garrison holder +3, reshuffle discards, play
+    season 2. Deck empty again → war ends, <strong>most glory wins</strong>.</p>
+  </main>
+
+  <footer>Four Banners — a browser war game playable with a regular deck, pen and paper.</footer>
+</body>
+</html>

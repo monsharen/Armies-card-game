@@ -1,54 +1,56 @@
-# ⚔️ Armies — a solo resource engine game
+# 🃏 Four Banners
 
-A single-player, turn-based browser game of **resource engine building**: a
-Wingspan-style engine under the hood (everything you build joins a row and boosts
-that row's action) with Catan-simple resources and piece limits. Build up your realm
-over 15 turns and repel three enemy invasions.
+A war game for **one regular 52-card deck** — four suit-armies race to capture and hold
+a central citadel. Playable in the browser for 1–4 players (any army without a player
+runs on a deterministic script), and equally playable on a kitchen table with a real
+deck, pen and paper.
 
 **No build step, no dependencies** — plain HTML/CSS/JS. Open `index.html` in a
 browser, or host it with GitHub Pages.
+
+## The game in one paragraph
+
+Each suit is an army: number cards are soldiers (strength = pips), the Ace a champion
+(11), the Jack a one-shot raider, the Queen a banner (+2 to all your battles) and the
+King a general (marches move 2). Cards of other suits are supply — one pays for each
+march. Armies march down their road toward the Citadel; battles are a single strength
+comparison (defender wins ties); capturing the Citadel scores 5 glory, holding it at
+each season's end 3, winning raids and defenses 1. Two seasons (one reshuffle), most
+glory wins.
+
+Automated armies hold no hand: their turn is two card flips — own suit deploys,
+anything else marches the frontmost unit. Fully deterministic, so at a real table any
+player can run them in seconds.
 
 ## Pages
 
 | Page | Purpose |
 |------|---------|
 | `index.html` | Landing page |
-| `game.html` | The game — a 15-turn solo campaign |
+| `game.html` | The game — hot-seat for 1–4 players plus automated armies |
 | `rules.html` | Full rules and strategy tips |
-| `cards.html` | Compendium of every unit/building, generated from the live game data |
-
-## How it plays
-
-- **3 resources**: Food 🌾, Ore ⛏️, Gold 🪙.
-- **3 rows** in your realm — Farmlands, Mines, War Camp — each tied to an action
-  (Harvest, Mine, Patrol). Every unit or building placed in a row makes that row's
-  action stronger: that's the engine.
-- **One action per turn**: build something from the (supply-limited) build menu,
-  or activate one row.
-- **Invasions** at the end of turns 5, 10 and 15. Enemy strength is rolled at
-  campaign start and revealed by your scouts in advance. Repel it (army power ≥
-  enemy strength) for 5/7/10 glory; fail and raiders pillage half your stores.
-- **Final score** = army power + war glory + 1 per 3 leftover resources, mapped to
-  a rank from Camp Follower to Legendary Conqueror. Personal best is kept in
-  `localStorage`.
+| `reference.html` | Printable one-page reference sheet for tabletop play |
 
 ## Code layout
 
 ```
-css/style.css   — all styling
-js/cards.js     — unit/building data (single source of truth, also drives the compendium)
+css/style.css   — all styling (incl. print styles for the reference sheet)
+js/cards.js     — deck, suits, strengths, army names
 js/engine.js    — pure game logic, no DOM (unit-testable in Node)
-js/ui.js        — rendering + player input for game.html
+js/ui.js        — rendering + input for game.html
 ```
 
-The engine has no DOM dependencies, so full campaigns can be simulated headlessly
-in Node for testing and balance work:
+The engine has no DOM dependencies, so full games can be simulated headlessly in Node
+for testing and balance work:
 
 ```js
 const engine = require('./js/engine.js');
-const state = engine.createGame();
-// drive state with engine.build / engine.activateRow / engine.endTurn
+const state = engine.createGame(0); // 0 humans = four automated armies
+while (!state.over) engine.npcFlip(state);
 ```
+
+Human seats are driven with `engine.deploy`, `engine.marchTo`, `engine.raid`,
+`engine.discardFromHand` and `engine.passTurn`.
 
 ## Hosting on GitHub Pages
 

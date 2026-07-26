@@ -1,183 +1,385 @@
-/* Armies — game page UI for the single-player campaign.
- * Renders the engine state and wires up player input. */
+/* Four Banners — game page UI. Renders the engine state and wires up input.
+ * The engine is pure; everything DOM lives here. */
 
-let state = null;
+let game = null;
+const ui = {
+  mode: null,          // null | {type:'march'|'raid'|'jack'|'camp', ...}
+  revealedSuit: null,  // hot-seat: which human's hand is currently shown
+  npcTimer: null,
+  numHumans: 1,
+};
 
-function startGame() {
-  state = createGame();
+const BOARD_POS = {
+  spades:   { camp: [1, 5], road: [[2, 5], [3, 5], [4, 5]] },
+  hearts:   { camp: [5, 1], road: [[5, 2], [5, 3], [5, 4]] },
+  diamonds: { camp: [5, 9], road: [[5, 8], [5, 7], [5, 6]] },
+  clubs:    { camp: [9, 5], road: [[8, 5], [7, 5], [6, 5]] },
+};
+
+function humanSuits() {
+  return SUITS.filter(s => game.armies[s].isHuman);
+}
+
+function playerLabel(suit) {
+  const humans = HUMAN_SEATS[ui.numHumans];
+  const i = humans.indexOf(suit);
+  return i === -1 ? 'Automated' : 'Player ' + (i + 1);
+}
+
+/* ── Game lifecycle ───────────────────────────────────────────────────── */
+
+function newGame(numHumans) {
+  ui.numHumans = numHumans;
+  clearTimeout(ui.npcTimer);
+  ui.npcTimer = null;
+  ui.mode = null;
+  ui.revealedSuit = null;
+  game = createGame(numHumans);
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('gameArea').classList.remove('hidden');
   document.getElementById('endModal').classList.add('hidden');
   render();
+  maybeScheduleNpc();
 }
 
-/* ── Player input (each is one full turn) ─────────────────────────────── */
-
-function canAct() {
-  return state && !state.over;
+function backToSetup() {
+  clearTimeout(ui.npcTimer);
+  ui.npcTimer = null;
+  game = null;
+  document.getElementById('endModal').classList.add('hidden');
+  document.getElementById('gameArea').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
 }
 
-function onBuild(typeId) {
-  if (!canAct()) return;
-  const result = build(state, typeId);
-  if (!result.ok) { toast(result.msg); return; }
-  endTurn(state);
+function afterEngineCall() {
   render();
-  if (state.over) showEndModal();
+  if (game.over) { showEndModal(); return; }
+  maybeScheduleNpc();
 }
 
-function onActivate(row) {
-  if (!canAct()) return;
-  activateRow(state, row);
-  endTurn(state);
+function maybeScheduleNpc() {
+  if (!game || game.over || currentArmy(game).isHuman || ui.npcTimer) return;
+  ui.npcTimer = setTimeout(() => {
+    ui.npcTimer = null;
+    npcFlip(game);
+    afterEngineCall();
+  }, 900);
+}
+
+/* ── Input ────────────────────────────────────────────────────────────── */
+
+function myTurn() {
+  return game && !game.over && currentArmy(game).isHuman &&
+    (humanSuits().length <= 1 || ui.revealedSuit === currentArmy(game).suit);
+}
+
+function raidTargetsExist() {
+  const suit = currentArmy(game).suit;
+  return SUITS.some(s => s !== suit && game.armies[s].road.some(Boolean));
+}
+
+function onHandClick(i) {
+  if (!myTurn()) return;
+  const army = currentArmy(game);
+  const card = army.hand[i];
+  if (!card) return;
+  if (game.pendingDiscard > 0) {
+    discardFromHand(game, i);
+    afterEngineCall();
+    return;
+  }
+  ui.mode = null;
+  if (card.suit === army.suit) {
+    if (card.rank === 'J' && raidTargetsExist()) {
+      ui.mode = { type: 'jack', handIdx: i };
+      render();
+      return;
+    }
+    const res = deploy(game, i);
+    if (!res.ok) { toast(res.msg); return; }
+    afterEngineCall();
+  } else {
+    if (!computeMarchMoves(game, army.suit).length) {
+      toast('No unit can march — muster a soldier first.');
+      return;
+    }
+    ui.mode = { type: 'march', supplyIdx: i };
+    render();
+  }
+}
+
+function chooseJackRaid() {
+  ui.mode = { type: 'raid', handIdx: ui.mode.handIdx };
   render();
-  if (state.over) showEndModal();
+}
+
+function chooseJackDeploy() {
+  const idx = ui.mode.handIdx;
+  ui.mode = null;
+  const res = deploy(game, idx);
+  if (!res.ok) toast(res.msg);
+  afterEngineCall();
+}
+
+function onCellClick(zone, suit, idx) {
+  if (!myTurn() || !ui.mode) return;
+  const army = currentArmy(game);
+  if (ui.mode.type === 'raid') {
+    if (suit === army.suit || zone !== 'road' || !game.armies[suit].road[idx]) return;
+    const res = raid(game, ui.mode.handIdx, suit, idx);
+    ui.mode = null;
+    if (!res.ok) toast(res.msg);
+    afterEngineCall();
+    return;
+  }
+  if (ui.mode.type === 'march') {
+    const dest = zone === 'citadel' ? { zone: 'citadel' } : { zone: 'road', idx };
+    if (zone === 'road' && suit !== army.suit) return;
+    const move = computeMarchMoves(game, army.suit).find(m =>
+      m.dest.zone === dest.zone && (dest.zone === 'citadel' || m.dest.idx === dest.idx));
+    if (!move) return;
+    if (move.from.zone === 'camp' && army.camp.length > 1) {
+      ui.mode = { type: 'camp', supplyIdx: ui.mode.supplyIdx, dest };
+      render();
+      return;
+    }
+    const res = marchTo(game, ui.mode.supplyIdx, dest);
+    ui.mode = null;
+    if (!res.ok) toast(res.msg);
+    afterEngineCall();
+  }
+}
+
+function pickCampUnit(campIdx) {
+  const res = marchTo(game, ui.mode.supplyIdx, ui.mode.dest, campIdx);
+  ui.mode = null;
+  if (!res.ok) toast(res.msg);
+  afterEngineCall();
+}
+
+function cancelMode() {
+  ui.mode = null;
+  render();
+}
+
+function onEndTurn() {
+  if (!myTurn() || game.pendingDiscard > 0) return;
+  ui.mode = null;
+  passTurn(game);
+  afterEngineCall();
+}
+
+function revealTurn() {
+  ui.revealedSuit = currentArmy(game).suit;
+  render();
 }
 
 /* ── Rendering ────────────────────────────────────────────────────────── */
 
 function render() {
-  renderStats();
+  if (!game) return;
   renderBoard();
-  renderBuildMenu();
+  renderHand();
   renderSidebar();
+  renderLog();
+  renderHandoff();
 }
 
-function renderStats() {
-  const r = state.resources;
-  document.getElementById('statFood').textContent = r.food;
-  document.getElementById('statOre').textContent = r.ore;
-  document.getElementById('statGold').textContent = r.gold;
-  document.getElementById('statPower').textContent = totalPower(state);
-  document.getElementById('statGlory').textContent = state.glory;
+function pcardHTML(card, cls) {
+  const meta = SUIT_META[card.suit];
+  return '<div class="pcard ' + meta.color + (cls ? ' ' + cls : '') + '">' +
+    '<span class="pc-rank">' + card.rank + '</span>' +
+    '<span class="pc-suit">' + meta.symbol + '</span></div>';
 }
 
-function cardHTML(card, opts) {
-  opts = opts || {};
-  const effect = effectText(card);
-  return '<div class="card row-' + card.row + (opts.classes ? ' ' + opts.classes : '') + '"' +
-    (opts.onclick ? ' onclick="' + opts.onclick + '"' : '') +
-    ' title="' + card.name + ' — ' + (effect || 'No effect, pure muscle') + '">' +
-    '<div class="card-top"><span class="card-name">' + card.name + '</span>' +
-    '<span class="power-badge">' + card.power + '</span></div>' +
-    '<div class="card-icon">' + card.icon + '</div>' +
-    (opts.showCost ? '<div class="card-cost">Cost: ' + costText(card.cost) + '</div>' : '') +
-    '<div class="card-effect">' + (effect || '') + '</div>' +
-    (opts.extra || '') +
-    '</div>';
+function marchDestsForRender() {
+  if (!ui.mode || (ui.mode.type !== 'march' && ui.mode.type !== 'camp')) return null;
+  const suit = currentArmy(game).suit;
+  const dests = { citadel: false, road: {} };
+  for (const m of computeMarchMoves(game, suit)) {
+    if (m.dest.zone === 'citadel') dests.citadel = true;
+    else dests.road[m.dest.idx] = true;
+  }
+  return { suit, dests };
 }
 
 function renderBoard() {
-  const el = document.getElementById('board');
+  const raidMode = ui.mode && ui.mode.type === 'raid';
+  const march = marchDestsForRender();
+  const mySuit = game && currentArmy(game).suit;
   let html = '';
-  for (const row of ROWS) {
-    const info = ROW_INFO[row];
-    const gains = rowGains(state, row);
-    const yieldParts = [];
-    for (const r of ['food', 'ore', 'gold']) {
-      if (gains[r]) yieldParts.push(gains[r] + RES_ICONS[r]);
+
+  for (const suit of SUITS) {
+    const army = game.armies[suit];
+    const pos = BOARD_POS[suit];
+    const meta = SUIT_META[suit];
+
+    // Camp
+    const campStack = army.camp.slice(-4).map(c => pcardHTML(c, 'mini')).join('');
+    const posts = (army.posts.queen ? '<span class="post" title="Banner: units fight at +2">Q</span>' : '') +
+      (army.posts.king ? '<span class="post" title="General: marches move up to 2">K</span>' : '');
+    html += '<div class="cell camp suit-' + suit + '" style="grid-row:' + pos.camp[0] + ';grid-column:' + pos.camp[1] + '"' +
+      ' title="' + armyName(suit) + ' camp — ' + army.camp.length + ' unit(s) mustered">' +
+      '<div class="camp-head">' + meta.symbol + (army.camp.length ? ' ×' + army.camp.length : '') + posts + '</div>' +
+      '<div class="camp-stack">' + campStack + '</div></div>';
+
+    // Road spaces
+    for (let i = 0; i < ROAD_LEN; i++) {
+      const [row, col] = pos.road[i];
+      const unit = army.road[i];
+      const classes = ['cell', 'road', 'suit-' + suit];
+      let click = '';
+      if (raidMode && unit && suit !== mySuit) {
+        classes.push('targetable');
+        click = ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"';
+      } else if (march && suit === march.suit && !unit && march.dests.road[i]) {
+        classes.push('targetable');
+        click = ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"';
+      }
+      html += '<div class="' + classes.join(' ') + '" style="grid-row:' + row + ';grid-column:' + col + '"' + click + '>' +
+        (unit ? pcardHTML(unit, 'mini') : '') + '</div>';
     }
-    html += '<div class="play-row ' + row + '">' +
-      '<div class="row-label">' + info.icon + ' ' + info.label + '</div>' +
-      '<div class="row-slots">';
-    for (const card of state.rows[row]) html += cardHTML(card);
-    for (let i = state.rows[row].length; i < ROW_CAP; i++) html += '<div class="empty-slot">empty</div>';
-    html += '</div>' +
-      '<button class="btn row-action" onclick="onActivate(\'' + row + '\')"' + (state.over ? ' disabled' : '') + '>' +
-      info.action + '<br><span class="yield">' + yieldParts.join(' ') + '</span></button>' +
-      '</div>';
   }
-  el.innerHTML = html;
+
+  // Citadel
+  const g = game.garrison;
+  const citClasses = ['cell', 'citadel'];
+  let citClick = '';
+  if (march && march.dests.citadel) {
+    citClasses.push('targetable');
+    citClick = ' onclick="onCellClick(\'citadel\',null,0)"';
+  }
+  if (g.owner) citClasses.push('owner-' + g.owner);
+  const defStr = strength(g.card) + (g.owner ? qBonus(game.armies[g.owner]) : 0);
+  html += '<div class="' + citClasses.join(' ') + '" style="grid-row:5;grid-column:5"' + citClick +
+    ' title="Citadel — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') + ', defends at ' + defStr + '">' +
+    '<span class="crown">👑</span>' + pcardHTML(g.card, 'mini') + '</div>';
+
+  document.getElementById('board').innerHTML = html;
 }
 
-function renderBuildMenu() {
-  const el = document.getElementById('buildMenu');
-  el.innerHTML = CARD_TYPES.map(type => {
-    const inStock = state.stock[type.id] > 0;
-    const roomInRow = state.rows[type.row].length < ROW_CAP;
-    const affordable = canAfford(state.resources, type.cost);
-    const buildable = inStock && roomInRow && affordable && !state.over;
-    const note = !inStock ? 'Supply exhausted' : !roomInRow ? 'Row full' : '';
-    const extra = '<span class="count-badge">' + (note || '×' + state.stock[type.id] + ' left') + '</span>';
-    return cardHTML(type, {
-      classes: buildable ? 'playable' : 'unaffordable',
-      onclick: 'onBuild(\'' + type.id + '\')',
-      showCost: true,
-      extra,
-    });
-  }).join('');
+function renderHand() {
+  const area = document.getElementById('handArea');
+  const cur = currentArmy(game);
+  let handSuit = null;
+  if (cur.isHuman && (humanSuits().length <= 1 || ui.revealedSuit === cur.suit)) handSuit = cur.suit;
+  else if (humanSuits().length === 1) handSuit = humanSuits()[0];
+
+  if (!handSuit) {
+    area.innerHTML = '<p class="hint">' + (cur.isHuman ? 'Waiting for ' + armyName(cur.suit) + '…'
+      : 'Automated armies are moving…') + '</p>';
+    return;
+  }
+  const army = game.armies[handSuit];
+  const active = myTurn() && handSuit === cur.suit;
+  const discarding = active && game.pendingDiscard > 0;
+  let html = '<h3>' + armyName(handSuit) + ' — your hand' +
+    (discarding ? ' <span class="bad">(discard ' + game.pendingDiscard + ')</span>' : '') + '</h3>' +
+    '<div class="hand-cards">';
+  html += army.hand.map((card, i) => {
+    const own = card.suit === handSuit;
+    const classes = [];
+    if (active) classes.push('playable');
+    if (!own) classes.push('supply');
+    if (ui.mode && (ui.mode.type === 'march' || ui.mode.type === 'camp') && ui.mode.supplyIdx === i) classes.push('selected');
+    if (ui.mode && (ui.mode.type === 'jack' || ui.mode.type === 'raid') && ui.mode.handIdx === i) classes.push('selected');
+    const tag = own ? (card.rank === 'J' ? 'raider' : card.rank === 'Q' ? 'banner' :
+      card.rank === 'K' ? 'general' : card.rank === 'A' ? 'champion' : 'soldier') : 'supply';
+    return '<div class="hand-slot"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
+      pcardHTML(card, classes.join(' ')) + '<span class="hand-tag">' + tag + '</span></div>';
+  }).join('') || '<p class="hint">Empty hand.</p>';
+  html += '</div>';
+  area.innerHTML = html;
 }
 
 function renderSidebar() {
-  // Turn tracker
-  const invasionTurns = {};
-  for (const inv of state.invasions) invasionTurns[inv.turn] = inv;
-  let pips = '';
-  for (let i = 1; i <= MAX_TURNS; i++) {
-    const cls = ['round-pip'];
-    if (invasionTurns[i]) cls.push('war');
-    if (i < state.turn || state.over) cls.push('done');
-    if (i === state.turn && !state.over) cls.push('current');
-    pips += '<span class="' + cls.join(' ') + '" title="Turn ' + i +
-      (invasionTurns[i] ? ' — invasion (' + invasionTurns[i].power + ' strength)' : '') + '">' +
-      (invasionTurns[i] ? '⚔' : i) + '</span>';
+  const cur = currentArmy(game);
+
+  // Scoreboard
+  let rows = '';
+  for (const suit of SUITS) {
+    const a = game.armies[suit];
+    rows += '<div class="score-row' + (suit === cur.suit && !game.over ? ' current' : '') + '">' +
+      '<span class="dot" style="background:' + SUIT_META[suit].tint + '"></span>' +
+      '<span class="score-name">' + armyName(suit) + '</span>' +
+      '<span class="score-who">' + (a.isHuman ? playerLabel(suit) : 'Auto') + '</span>' +
+      '<span class="score-glory">' + (game.garrison.owner === suit ? '👑 ' : '') + a.glory + ' 🏅</span>' +
+      '</div>';
   }
-  document.getElementById('roundTrack').innerHTML = pips;
+  rows += '<div class="deck-info">Season ' + game.season + ' of ' + SEASONS +
+    ' · Deck ' + game.deck.length + ' · Discard ' + game.discard.length + '</div>';
+  document.getElementById('scoreboard').innerHTML = rows;
 
-  const banner = document.getElementById('turnBanner');
-  banner.innerHTML = state.over
-    ? 'The campaign is over. <a href="#" onclick="showEndModal();return false;">View results</a>'
-    : 'Turn <span class="who">' + state.turn + '</span> of ' + MAX_TURNS +
-      ' — build something, or activate a row.';
-
-  // Next invasion panel
-  const invEl = document.getElementById('invasionPanel');
-  const next = nextInvasion(state);
-  if (next) {
-    const power = totalPower(state);
-    const gap = next.power - power;
-    const turnsAway = next.turn - state.turn;
-    invEl.innerHTML =
-      '<div class="invasion-strength">🏴 Enemy strength: <strong>' + next.power + '</strong></div>' +
-      '<div>💪 Your power: <strong>' + power + '</strong> ' +
-      (gap > 0 ? '<span class="bad">(' + gap + ' short!)</span>' : '<span class="good">(ready ✓)</span>') + '</div>' +
-      '<div>🕰️ Strikes ' + (turnsAway === 0 ? '<strong class="bad">at the end of THIS turn</strong>'
-        : 'after turn ' + next.turn + ' (' + turnsAway + ' turn' + (turnsAway === 1 ? '' : 's') + ' away)') + '</div>' +
-      '<div>🏅 Worth ' + next.glory + ' glory if repelled — raiders pillage half your stores if not.</div>';
+  // Turn panel
+  const panel = document.getElementById('turnPanel');
+  if (game.over) {
+    panel.innerHTML = '<p>The war is over. <a href="#" onclick="showEndModal();return false;">View results</a></p>';
+    return;
+  }
+  if (!cur.isHuman) {
+    panel.innerHTML = '<p>' + armyName(cur.suit) + ' (automated) is flipping cards… ' +
+      '(' + game.flipsLeft + ' flip' + (game.flipsLeft === 1 ? '' : 's') + ' left)</p>';
+    return;
+  }
+  if (!myTurn()) {
+    panel.innerHTML = '<p>Waiting for ' + playerLabel(cur.suit) + '…</p>';
+    return;
+  }
+  let html = '<p><strong>' + armyName(cur.suit) + '</strong> — ' + game.actionsLeft +
+    ' action' + (game.actionsLeft === 1 ? '' : 's') + ' left.</p>';
+  if (game.pendingDiscard > 0) {
+    html += '<p class="prompt bad">Hand over limit — click ' + game.pendingDiscard + ' card(s) to discard.</p>';
+  } else if (ui.mode && ui.mode.type === 'jack') {
+    html += '<p class="prompt">Your Jack can raid or fight in the ranks:</p>' +
+      '<button class="btn" onclick="chooseJackRaid()">🗡️ Raid an enemy unit</button> ' +
+      '<button class="btn" onclick="chooseJackDeploy()">🛡️ Deploy as soldier (11)</button> ' +
+      '<button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (ui.mode && ui.mode.type === 'raid') {
+    html += '<p class="prompt">Click an enemy unit on a road to raid it (you strike at ' +
+      (11 + qBonus(cur)) + ').</p><button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (ui.mode && ui.mode.type === 'march') {
+    html += '<p class="prompt">Click a highlighted space (or the Citadel) to march there.</p>' +
+      '<button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (ui.mode && ui.mode.type === 'camp') {
+    html += '<p class="prompt">Which camp unit marches?</p>' +
+      cur.camp.map((c, i) => '<button class="btn camp-pick" onclick="pickCampUnit(' + i + ')">' +
+        cardLabel(c) + ' (' + strength(c) + ')</button>').join(' ') +
+      ' <button class="btn" onclick="cancelMode()">Cancel</button>';
   } else {
-    invEl.innerHTML = '<div>All invasions resolved.</div>';
+    html += '<p class="prompt">Click a card: your suit deploys · other suits supply a march.</p>' +
+      '<button class="btn" onclick="onEndTurn()">Hold position (end turn)</button>';
   }
+  panel.innerHTML = html;
+}
 
-  // Log (newest first)
-  document.getElementById('log').innerHTML = state.log.slice(-40).reverse().map(entry =>
-    '<p class="log-' + entry.kind + '">' + entry.msg + '</p>').join('');
+function renderHandoff() {
+  const overlay = document.getElementById('handoff');
+  const cur = currentArmy(game);
+  const need = !game.over && cur.isHuman && humanSuits().length > 1 && ui.revealedSuit !== cur.suit;
+  overlay.classList.toggle('hidden', !need);
+  if (need) {
+    document.getElementById('handoffText').innerHTML =
+      'Pass the device to <strong>' + playerLabel(cur.suit) + '</strong><br>' + armyName(cur.suit);
+  }
+}
+
+function renderLog() {
+  document.getElementById('log').innerHTML = game.log.slice(-45).reverse().map(e =>
+    '<p class="log-' + e.kind + '">' + e.msg + '</p>').join('');
 }
 
 /* ── End of game ──────────────────────────────────────────────────────── */
 
-function bestScore() {
-  try { return parseInt(localStorage.getItem('armies-best') || '0', 10); }
-  catch (e) { return 0; }
-}
-
-function saveBestScore(total) {
-  try {
-    if (total > bestScore()) localStorage.setItem('armies-best', String(total));
-  } catch (e) { /* private browsing */ }
-}
-
 function showEndModal() {
-  const score = finalScore(state);
-  const rank = rankFor(score.total);
-  const repelled = state.invasions.filter(i => i.won).length;
-  saveBestScore(score.total);
-  document.getElementById('endVerdict').innerHTML =
-    rank.icon + ' You are remembered as a <strong>' + rank.title + '</strong>' +
-    '<br><small>' + repelled + ' of ' + state.invasions.length + ' invasions repelled</small>';
+  const rows = SUITS.slice().sort((a, b) => game.armies[b].glory - game.armies[a].glory);
+  document.getElementById('endVerdict').innerHTML = '🏆 ' +
+    game.winners.map(armyName).join(' & ') + ' — victorious with ' +
+    game.armies[game.winners[0]].glory + ' glory!';
   document.getElementById('endTable').innerHTML =
-    '<tr><td>💪 Army power</td><td>' + score.power + '</td></tr>' +
-    '<tr><td>🏅 War glory</td><td>' + score.glory + '</td></tr>' +
-    '<tr><td>📦 Supplies (1 per 3 resources)</td><td>' + score.supplies + '</td></tr>' +
-    '<tr><th>Final score</th><th>' + score.total + '</th></tr>' +
-    '<tr><td>🏆 Personal best</td><td>' + bestScore() + '</td></tr>';
+    '<tr><th>Army</th><th>Controller</th><th>Glory</th></tr>' +
+    rows.map(s => '<tr' + (game.winners.indexOf(s) !== -1 ? ' class="winner-row"' : '') + '><td>' + armyName(s) + '</td><td>' +
+      (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td>' +
+      game.armies[s].glory + '</td></tr>').join('');
   document.getElementById('endModal').classList.remove('hidden');
 }
 
@@ -193,7 +395,5 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
 }
-
-document.addEventListener('DOMContentLoaded', startGame);
