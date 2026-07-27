@@ -16,6 +16,7 @@ const ui = {
   revealedSuit: null,  // hot-seat: which human's hand is currently shown
   npcTimer: null,
   numHumans: 1,
+  pendingHide: {},     // suit -> drawn cards still in flight (hidden in hand)
 };
 
 const BOARD_POS = {
@@ -45,13 +46,16 @@ function newGame(numHumans) {
   ui.revealedSuit = null;
   ui.bannerSuit = null;
   ui.glorySeen = null;
+  ui.pendingHide = {};
   game = createGame(numHumans);
   sfx.startMusic();
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('gameArea').classList.remove('hidden');
   document.getElementById('endModal').classList.add('hidden');
+  const events = game.events.splice(0);
+  markPendingHides(events);
   render();
-  playFx(game.events.splice(0));
+  playFx(events);
   maybeScheduleNpc();
 }
 
@@ -66,10 +70,47 @@ function backToSetup() {
 }
 
 function afterEngineCall() {
+  const events = game.events.splice(0);
+  markPendingHides(events);
   render();
-  playFx(game.events.splice(0));
+  playFx(events);
   if (game.over) { setTimeout(showEndModal, Math.max(600, fxUntil - Date.now())); return; }
   maybeScheduleNpc();
+}
+
+/* Cards drawn or dealt this batch stay invisible in the hand until their
+ * card-back flight from the deck lands on their slot. */
+function markPendingHides(events) {
+  for (const ev of events) {
+    if (ev.type === 'draw' || ev.type === 'deal') {
+      ui.pendingHide[ev.suit] = (ui.pendingHide[ev.suit] || 0) + ev.count;
+    }
+  }
+}
+
+function revealNextHandCard(suit) {
+  const p = ui.pendingHide[suit] || 0;
+  if (p <= 0) return;
+  ui.pendingHide[suit] = p - 1;
+  const idx = game.armies[suit].hand.length - p;
+  const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
+  if (slot) {
+    slot.classList.remove('deal-hide');
+    slot.classList.add('deal-pop');
+    setTimeout(() => slot.classList.remove('deal-pop'), 450);
+  }
+}
+
+/* Where the next drawn card should land: its future hand slot when that hand
+ * is on screen, otherwise the player's camp corner. */
+function drawDest(suit) {
+  const p = ui.pendingHide[suit] || 0;
+  if (p > 0) {
+    const idx = game.armies[suit].hand.length - p;
+    const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
+    if (slot) return slot.getBoundingClientRect();
+  }
+  return rectOf(cellSel('camp', suit)) || rectOf('#handArea');
 }
 
 function maybeScheduleNpc() {
@@ -298,60 +339,123 @@ try { pixelMode = localStorage.getItem('kartenburg-pixel') === '1'; } catch (e) 
 
 const spriteCache = new Map();
 
-/* Draw a card face (or back, card=null) at half resolution and return a data
- * URL; the <img> upscales it with image-rendering: pixelated. */
-function cardSprite(card, w, h) {
-  const key = (card ? card.id : 'back') + '@' + w;
-  if (spriteCache.has(key)) return spriteCache.get(key);
-  const lw = Math.max(12, Math.round(w / 2));
-  const lh = Math.max(16, Math.round(h / 2));
-  const cv = document.createElement('canvas');
-  cv.width = lw;
-  cv.height = lh;
-  const ctx = cv.getContext('2d');
-  if (!card) {
-    ctx.fillStyle = '#5d2020';
-    ctx.fillRect(0, 0, lw, lh);
-    ctx.strokeStyle = '#2e0f0f';
-    ctx.strokeRect(0.5, 0.5, lw - 1, lh - 1);
-    ctx.strokeStyle = '#7b2f2f';
-    for (let i = -lh; i < lw; i += 4) {
-      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + lh, lh); ctx.stroke();
+/* Pixel-perfect card sprites: no canvas text (it antialiases) — everything
+ * is drawn from hand-made bitmaps with 1px fillRects, then displayed at an
+ * exact integer upscale with image-rendering: pixelated. */
+
+const PIX_FONT = {
+  '0': ['111', '101', '101', '101', '111'],
+  '1': ['010', '110', '010', '010', '111'],
+  '2': ['111', '001', '111', '100', '111'],
+  '3': ['111', '001', '011', '001', '111'],
+  '4': ['101', '101', '111', '001', '001'],
+  '5': ['111', '100', '111', '001', '111'],
+  '6': ['111', '100', '111', '101', '111'],
+  '7': ['111', '001', '010', '010', '010'],
+  '8': ['111', '101', '111', '101', '111'],
+  '9': ['111', '101', '111', '001', '111'],
+  A: ['010', '101', '111', '101', '101'],
+  J: ['111', '010', '010', '010', '110'],
+  Q: ['010', '101', '101', '010', '001'],
+  K: ['101', '101', '110', '101', '101'],
+};
+
+const PIX_SUIT = {
+  hearts:   ['01010', '11111', '11111', '01110', '00100'],
+  diamonds: ['00100', '01110', '11111', '01110', '00100'],
+  spades:   ['00100', '01110', '11111', '11111', '00100'],
+  clubs:    ['00100', '01110', '11111', '00100', '01110'],
+};
+
+const PIX_EMBLEM = {
+  K: { rows: ['10000100001', '11001110011', '11111111111', '01111111110', '01111111110'],
+       colors: { 1: '#d4a72c' } },
+  Q: { rows: ['211111111', '211111111', '211111110', '211111100', '200000000', '200000000', '200000000'],
+       colors: { 1: '#c22b2b', 2: '#6b4a2c' } },
+  J: { rows: ['0001000', '0011100', '0011100', '0011100', '0011100', '0011100', '2222222', '0002000', '0022200'],
+       colors: { 1: '#8f9aa8', 2: '#6b4a2c' } },
+};
+
+function drawPix(ctx, rows, x, y, colors, rot) {
+  const h = rows.length;
+  for (let j = 0; j < h; j++) {
+    const row = rows[j];
+    for (let i = 0; i < row.length; i++) {
+      const ch = row[i];
+      if (ch === '0') continue;
+      const color = colors[ch] || colors['1'];
+      if (!color) continue;
+      ctx.fillStyle = color;
+      if (rot) ctx.fillRect(x + (row.length - 1 - i), y + (h - 1 - j), 1, 1);
+      else ctx.fillRect(x + i, y + j, 1, 1);
     }
-    ctx.fillStyle = '#e8c76a';
-    ctx.fillRect(Math.floor(lw / 2) - 1, Math.floor(lh / 2) - 1, 3, 3);
+  }
+}
+
+function drawRank(ctx, rank, x, y, ink, rot) {
+  const glyphs = rank === '10' ? ['1', '0'] : [rank];
+  if (rot) glyphs.reverse();
+  glyphs.forEach((g, i) => drawPix(ctx, PIX_FONT[g], x + i * 4, y, { 1: ink }, rot));
+}
+
+/* Draw a card sprite from bitmaps. size 'l' = 32x44 shown at 64x88 (2x),
+ * size 's' = 16x22 shown at 32x44 (2x) or 16x22 (1x) in camp stacks. */
+function cardSprite(card, size) {
+  const key = (card ? card.id : 'back') + '@' + size;
+  if (spriteCache.has(key)) return spriteCache.get(key);
+  const large = size === 'l';
+  const w = large ? 32 : 16;
+  const h = large ? 44 : 22;
+  const cv = document.createElement('canvas');
+  cv.width = w;
+  cv.height = h;
+  const ctx = cv.getContext('2d');
+
+  const frame = (fill, edge) => {
+    ctx.fillStyle = edge;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = fill;
+    ctx.fillRect(1, 1, w - 2, h - 2);
+  };
+
+  if (!card) {
+    frame('#5d2020', '#2e0f0f');
+    ctx.fillStyle = '#7b2f2f';
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        if ((x + y) % 5 < 2) ctx.fillRect(x, y, 1, 1);
+      }
+    }
+    drawPix(ctx, PIX_SUIT.diamonds, Math.floor(w / 2) - 2, Math.floor(h / 2) - 2, { 1: '#e8c76a' });
   } else {
     const meta = SUIT_META[card.suit];
     const ink = meta.color === 'red' ? '#c22b2b' : '#23252c';
-    ctx.fillStyle = '#f4ecd8';
-    ctx.fillRect(0, 0, lw, lh);
-    ctx.strokeStyle = '#3b3b46';
-    ctx.strokeRect(0.5, 0.5, lw - 1, lh - 1);
-    ctx.fillStyle = ink;
-    ctx.textBaseline = 'top';
-    const big = lw >= 28;
-    if (big) {
-      ctx.font = 'bold 8px monospace';
-      ctx.fillText(card.rank, 2, 2);
-      ctx.font = '7px monospace';
-      ctx.fillText(meta.symbol, 2, 10);
-      ctx.save();
-      ctx.translate(lw - 2, lh - 2);
-      ctx.rotate(Math.PI);
-      ctx.font = 'bold 8px monospace';
-      ctx.fillText(card.rank, 0, 0);
-      ctx.font = '7px monospace';
-      ctx.fillText(meta.symbol, 0, 8);
-      ctx.restore();
-      ctx.textAlign = 'center';
-      ctx.font = (COURT_EMBLEM[card.rank] ? '13px' : '14px') + ' monospace';
-      ctx.fillText(COURT_EMBLEM[card.rank] || meta.symbol, lw / 2, lh / 2 - 7);
+    frame('#f4ecd8', '#2b2b33');
+    if (large) {
+      drawRank(ctx, card.rank, 3, 3, ink);
+      drawPix(ctx, PIX_SUIT[card.suit], 3, 10, { 1: ink });
+      drawRank(ctx, card.rank, card.rank === '10' ? w - 10 : w - 6, h - 8, ink, true);
+      drawPix(ctx, PIX_SUIT[card.suit], w - 8, h - 16, { 1: ink }, true);
+      const emblem = PIX_EMBLEM[card.rank];
+      if (emblem) {
+        drawPix(ctx, emblem.rows, Math.floor((w - emblem.rows[0].length) / 2),
+          Math.floor((h - emblem.rows.length) / 2) + 1, emblem.colors);
+      } else {
+        // center suit at 2x, drawn as a scaled bitmap
+        const rows = PIX_SUIT[card.suit];
+        for (let j = 0; j < rows.length; j++) {
+          for (let i = 0; i < rows[j].length; i++) {
+            if (rows[j][i] === '1') {
+              ctx.fillStyle = ink;
+              ctx.fillRect(Math.floor(w / 2) - 5 + i * 2, Math.floor(h / 2) - 4 + j * 2, 2, 2);
+            }
+          }
+        }
+      }
     } else {
-      ctx.textAlign = 'center';
-      ctx.font = 'bold 9px monospace';
-      ctx.fillText(card.rank, lw / 2, 2);
-      ctx.font = '9px monospace';
-      ctx.fillText(meta.symbol, lw / 2, lh / 2);
+      const rw = card.rank === '10' ? 7 : 3;
+      drawRank(ctx, card.rank, Math.floor((w - rw) / 2), 3, ink);
+      drawPix(ctx, PIX_SUIT[card.suit], Math.floor((w - 5) / 2), 12, { 1: ink });
     }
   }
   const url = cv.toDataURL();
@@ -377,10 +481,10 @@ function pcardHTML(card, cls, onclick) {
   const meta = SUIT_META[card.suit];
   const mini = cls && cls.indexOf('mini') !== -1;
   if (pixelMode) {
-    const w = mini ? 42 : 64;
-    const h = mini ? 58 : 90;
+    const w = mini ? 32 : 64;
+    const h = mini ? 44 : 88;
     return '<img class="pcard pix ' + meta.color + (cls ? ' ' + cls : '') + '" src="' +
-      cardSprite(card, w, h) + '" width="' + w + '" height="' + h + '" alt="' + cardLabel(card) + '"' +
+      cardSprite(card, mini ? 's' : 'l') + '" width="' + w + '" height="' + h + '" alt="' + cardLabel(card) + '"' +
       (onclick ? ' onclick="' + onclick + '"' : '') + ' draggable="false">';
   }
   if (mini) {
@@ -455,7 +559,7 @@ function renderBoard() {
   html += '<div id="deckPile" class="cell pile" style="grid-row:1 / span 2;grid-column:1 / span 2"' +
     ' title="Draw deck — ' + game.deck.length + ' cards. Automated armies flip from here.">' +
     (game.deck.length
-      ? '<div class="pile-stack"><div class="pcard back b3"></div><div class="pcard back b2"></div><div class="pcard back"></div></div>'
+      ? '<div class="pile-stack">' + cardBackHTML('b3') + cardBackHTML('b2') + cardBackHTML() + '</div>'
       : '<div class="pile-empty">empty</div>') +
     '<span class="pile-count">Deck ' + game.deck.length + '</span></div>';
   const topDisc = game.discard[game.discard.length - 1];
@@ -505,7 +609,9 @@ function renderHand() {
     if (!own) classes.push('supply');
     const tag = own ? (card.rank === 'J' ? 'raider' : card.rank === 'Q' ? 'banner' :
       card.rank === 'K' ? 'general' : card.rank === 'A' ? 'champion' : 'soldier') : 'supply';
-    return '<div class="hand-slot" style="--i:' + i + '"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
+    const hiddenFrom = a.hand.length - (ui.pendingHide[handSuit] || 0);
+    return '<div class="hand-slot' + (i >= hiddenFrom ? ' deal-hide' : '') + '" data-slot="' + i +
+      '" style="--i:' + i + '"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
       pcardHTML(card, classes.join(' ')) + '<span class="hand-tag">' + tag + '</span></div>';
   }).join('') || '<p class="hint">Empty hand.</p>';
   html += '</div>';
@@ -776,12 +882,24 @@ const FX_DUR = {
 function playFx(events) {
   if (!events.length) return;
   let t = 0;
+  const handSuits = [];
   for (const ev of events) {
     const at = t;
     setTimeout(() => { try { runFx(ev); } catch (e) { /* cosmetic only */ } }, at);
     t += FX_DUR[ev.type] || 300;
+    if (ev.type === 'draw' || ev.type === 'deal') handSuits.push(ev.suit);
   }
   fxUntil = Math.max(fxUntil, Date.now() + t);
+  if (handSuits.length) {
+    setTimeout(() => {
+      if (!game) return;
+      let stuck = false;
+      for (const suit of handSuits) {
+        if (ui.pendingHide[suit] > 0) { ui.pendingHide[suit] = 0; stuck = true; }
+      }
+      if (stuck) render();
+    }, t + 600);
+  }
 }
 
 function fxRoot() { return document.getElementById('fx'); }
@@ -800,7 +918,7 @@ function cellSel(zone, suit, idx) {
 function cardBackHTML(cls) {
   if (pixelMode) {
     return '<img class="pcard pix back' + (cls ? ' ' + cls : '') + '" src="' +
-      cardSprite(null, 64, 90) + '" width="64" height="90" alt="" draggable="false">';
+      cardSprite(null, 'l') + '" width="64" height="88" alt="" draggable="false">';
   }
   return '<div class="pcard back' + (cls ? ' ' + cls : '') + '"></div>';
 }
@@ -924,7 +1042,11 @@ function runFx(ev) {
   switch (ev.type) {
     case 'draw': {
       for (let i = 0; i < ev.count; i++) {
-        setTimeout(() => { flyHTML(cardBackHTML(), deckR, handR, 380); sfx.draw(); }, i * 140);
+        setTimeout(() => {
+          flyHTML(cardBackHTML(), deckR, drawDest(ev.suit), 380);
+          sfx.draw();
+          setTimeout(() => revealNextHandCard(ev.suit), 370);
+        }, i * 150);
       }
       break;
     }
@@ -937,12 +1059,14 @@ function runFx(ev) {
       break;
     }
     case 'deal': {
-      // Opening hands: card backs stream from the deck to the shown hand, or
-      // to that player's camp corner when their hand is hidden (hot-seat).
-      const shown = currentArmy(game).isHuman && currentArmy(game).suit === ev.suit;
-      const destR = shown ? handR : rectOf(cellSel('camp', ev.suit));
+      // Opening hands: card backs stream from the deck onto each hand slot
+      // (or to that player's camp corner when their hand is hidden).
       for (let i = 0; i < ev.count; i++) {
-        setTimeout(() => { flyHTML(cardBackHTML(), deckR, destR, 380); sfx.draw(); }, i * 130);
+        setTimeout(() => {
+          flyHTML(cardBackHTML(), deckR, drawDest(ev.suit), 380);
+          sfx.draw();
+          setTimeout(() => revealNextHandCard(ev.suit), 370);
+        }, i * 150);
       }
       break;
     }
