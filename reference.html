@@ -36,43 +36,51 @@
                  [ 1 ]
                  [♣ camp]
     </pre>
-    <p>One card per road space; camps unlimited. <strong>Setup:</strong> deal 4 to each
-    human; flip 1 card onto the Citadel as the neutral garrison.</p>
+    <p><strong>Setup:</strong> deal 4 to each human; flip <strong>2 cards</strong> onto the
+    Citadel as the mercenary garrison (strength = their sum).</p>
 
-    <h2>Your suit</h2>
+    <h2>Armies</h2>
+    <p>An army = a stack of up to <strong>3 cards</strong> of your suit on one space.
+    Strength = <strong>sum of its cards</strong> (+2 with your Queen). One army per road
+    space; camp holds any number.</p>
     <table>
-      <tr><th>2–10</th><td>Soldier (strength = pips)</td><th>A</th><td>Champion (11)</td></tr>
-      <tr><th>J</th><td>Raider (11): one-shot attack on any enemy road unit, then discard — or deploy as a soldier</td>
-          <th>Q / K</th><td>Camp posts. Q: all your units +2 in battle. K: marches move up to 2 spaces</td></tr>
+      <tr><th>2–10</th><td>Soldier (pips)</td><th>A</th><td>Champion (11)</td></tr>
+      <tr><th>J</th><td>Raider (11): strikes the <em>weakest card</em> of any enemy road army, then discard — or deploys as a soldier</td>
+          <th>Q / K</th><td>Camp posts. Q: all your armies +2. K: marches cost 1 less supply</td></tr>
     </table>
-    <p><strong>Other suits = supply</strong>: discard one to pay for each march.</p>
+    <p><strong>Other suits = supply</strong>: a march costs 1 supply per card in the stack
+    (K: −1, min 1).</p>
 
     <h2>Player turn</h2>
     <ol>
+      <li><strong>Tribute:</strong> +1 glory if you hold the Citadel.</li>
       <li><strong>Draw 2</strong> (hand limit 7; discard down).</li>
-      <li><strong>Up to 2 actions</strong>: <em>Deploy</em> a card of your suit ·
-      <em>March</em> (discard supply; 1 space, 2 with King; gate → assault Citadel; no jumping) ·
+      <li><strong>Up to 2 actions</strong>: <em>Deploy</em> (new army, or reinforce any of
+      your armies incl. the garrison, max 3) · <em>March</em> one space (pay supply; onto
+      your own army = <em>merge</em> if ≤3; from the gate = <em>assault</em>) ·
       <em>Raid</em> with your Jack.</li>
     </ol>
 
     <h2>Battle</h2>
-    <p>Attacker vs. defender strength, each +2 with their Queen. <strong>Defender wins
-    ties.</strong> Loser discarded. Assault winner becomes the garrison.</p>
+    <p>Attacker stack total vs. defender stack total, each +2 with their Queen.
+    <strong>Defender wins ties.</strong> Loser destroyed; <strong>winner discards its
+    weakest card</strong> (single-card armies spared) — garrisons too. Assault winner
+    becomes the garrison.</p>
 
     <h2>Automated army turn — flip 2, resolve in order</h2>
     <table>
-      <tr><th>Own suit</th><td>Deploy to camp (Q/K to posts). Jack: raid the enemy unit nearest the Citadel (tie: strongest, then clockwise); no target → camp.</td></tr>
-      <tr><th>Other suit</th><td>March: frontmost unit advances as far as it can (gate → assault). No road unit can move → strongest camp unit steps out. No units → wasted.</td></tr>
+      <tr><th>Own suit</th><td>Q/K to posts. Jack: raid the weakest card of the enemy army nearest the Citadel (tie: strongest, then clockwise); nothing to raid → reinforce. Else reinforce the most forward army with room (garrison → road → camp) or found a new army.</td></tr>
+      <tr><th>Other suit</th><td>Add to its supply pile. If the pile ≥ the frontmost army's march cost, that army marches (gate → assault) and the pile is spent; otherwise it banks.</td></tr>
     </table>
 
     <h2>Glory (tally on paper)</h2>
     <table>
       <tr><th>Capture the Citadel</th><td>+5</td>
-          <th>Hold it at season's end</th><td>+3</td>
-          <th>Win a raid / defense</th><td>+1</td></tr>
+          <th>Hold it at your turn's start</th><td>+1</td>
+          <th>Win a raid / repel an assault</th><td>+1</td></tr>
     </table>
-    <p><strong>Seasons:</strong> deck empty → garrison holder +3, reshuffle discards, play
-    season 2. Deck empty again → war ends, <strong>most glory wins</strong>.</p>
+    <p><strong>Seasons:</strong> deck empty → reshuffle discards, play season 2. Deck empty
+    again → war ends, <strong>most glory wins</strong>.</p>
   </main>
 
   <footer>Four Banners — a browser war game playable with a regular deck, pen and paper.</footer>

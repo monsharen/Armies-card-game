@@ -1,17 +1,26 @@
 /* Four Banners — pure game engine. No DOM access, so it can be unit-tested in
  * Node and driven by either the UI or headless simulations.
  *
- * Board: a central Citadel with four roads of ROAD_LEN spaces, one per suit.
- * road[0] is nearest the camp, road[ROAD_LEN-1] is the gate before the Citadel.
- * One card per road space; camps hold any number of units.
+ * Units are ARMIES: stacks of up to STACK_CAP cards of one suit. An army's
+ * strength is the sum of its cards (+2 with its Queen banner). Armies march
+ * down a road of ROAD_LEN spaces toward the central Citadel; marching costs
+ * one supply card per card in the stack (King: one less, min 1). Armies can
+ * merge by marching onto a friendly army. Battles compare stack totals
+ * (defender wins ties): the loser is destroyed and the winner discards its
+ * weakest card as casualties — victories cost blood, so no army is forever.
+ *
+ * The Citadel pays tribute: +1 glory at the start of each of your turns while
+ * your army garrisons it. That clock is what punishes waiting at home for
+ * perfect cards.
  */
 
 const ROAD_LEN = 3;
+const STACK_CAP = 3;
 const HAND_LIMIT = 7;
 const ACTIONS_PER_TURN = 2;
 const NPC_FLIPS = 2;
 const SEASONS = 2;
-const GLORY = { battle: 1, capture: 5, season: 3 };
+const GLORY = { battle: 1, capture: 5, tribute: 1 };
 
 // Which suits are human-controlled for a given player count. Chosen so that
 // with 2 humans, turn order alternates human / automated army.
@@ -58,19 +67,21 @@ function createGame(numHumans) {
       suit,
       isHuman: humans.indexOf(suit) !== -1,
       hand: [],
-      camp: [],
-      road: new Array(ROAD_LEN).fill(null),
+      camp: [],                          // array of {cards: [...]} stacks
+      road: new Array(ROAD_LEN).fill(null), // each null or {cards: [...]}
       posts: { queen: null, king: null },
+      supply: 0,                         // automated armies bank supply here
       glory: 0,
     };
   }
   for (const suit of humans) {
     for (let i = 0; i < 4; i++) state.armies[suit].hand.push(state.deck.pop());
   }
-  const g = state.deck.pop();
-  state.garrison = { card: g, owner: null };
+  const g = [state.deck.pop(), state.deck.pop()];
+  state.garrison = { cards: g, owner: null };
   addLog(state, 'system', 'The war for the Citadel begins. Mercenaries hold it: ' +
-    cardLabel(g) + ' (strength ' + strength(g) + ').');
+    stackLabel(g) + ' (strength ' + stackSum(g) + '). The Citadel pays its holder ' +
+    GLORY.tribute + ' glory at the start of each of their turns.');
   beginTurn(state);
   return state;
 }
@@ -87,8 +98,35 @@ function qBonus(army) {
   return army.posts.queen ? 2 : 0;
 }
 
-function unitsOnBoard(army) {
-  return army.camp.length + army.road.filter(Boolean).length;
+function stackSum(cards) {
+  return cards.reduce((s, c) => s + strength(c), 0);
+}
+
+function stackLabel(cards) {
+  return cards.map(cardLabel).join('+');
+}
+
+/* Battle strength of a stack fighting for a given owner (null = mercenaries). */
+function effStrength(state, ownerSuit, cards) {
+  return stackSum(cards) + (ownerSuit ? qBonus(state.armies[ownerSuit]) : 0);
+}
+
+function weakestIdx(cards) {
+  let idx = 0;
+  for (let i = 1; i < cards.length; i++) {
+    if (strength(cards[i]) < strength(cards[idx])) idx = i;
+  }
+  return idx;
+}
+
+function marchCost(army, stack) {
+  return Math.max(1, stack.cards.length - (army.posts.king ? 1 : 0));
+}
+
+function supplyIndices(army) {
+  const idxs = [];
+  army.hand.forEach((c, i) => { if (c.suit !== army.suit) idxs.push(i); });
+  return idxs;
 }
 
 /* ── Deck, seasons, game end ──────────────────────────────────────────── */
@@ -101,13 +139,6 @@ function drawCard(state) {
 }
 
 function endSeason(state) {
-  if (state.garrison.owner) {
-    state.armies[state.garrison.owner].glory += GLORY.season;
-    addLog(state, 'system', '🍂 The season ends. ' + armyName(state.garrison.owner) +
-      ' holds the Citadel: +' + GLORY.season + ' glory.');
-  } else {
-    addLog(state, 'system', '🍂 The season ends with mercenaries still holding the Citadel.');
-  }
   if (state.season >= SEASONS) {
     finishGame(state);
     return;
@@ -134,6 +165,11 @@ function finishGame(state) {
 function beginTurn(state) {
   if (state.over) return;
   const army = currentArmy(state);
+  if (state.garrison.owner === army.suit) {
+    army.glory += GLORY.tribute;
+    addLog(state, 'system', '👑 ' + armyName(army.suit) + ' collects the Citadel tribute: +' +
+      GLORY.tribute + ' glory.');
+  }
   if (army.isHuman) {
     let drawn = 0;
     while (drawn < 2) {
@@ -175,42 +211,56 @@ function passTurn(state) {
 
 /* ── Battles ──────────────────────────────────────────────────────────── */
 
-function resolveAssault(state, suit, unit) {
-  const army = state.armies[suit];
+/* Winner discards its weakest card as casualties (single-card armies are
+ * spared). Applies to garrisons repelling assaults too — fortresses erode. */
+function takeCasualties(state, cards) {
+  if (cards.length < 2) return null;
+  const fallen = cards.splice(weakestIdx(cards), 1)[0];
+  state.discard.push(fallen);
+  return fallen;
+}
+
+function resolveAssault(state, suit, stack) {
   const g = state.garrison;
-  const attStr = strength(unit) + qBonus(army);
-  const defStr = strength(g.card) + (g.owner ? qBonus(state.armies[g.owner]) : 0);
+  const attStr = effStrength(state, suit, stack.cards);
+  const defStr = effStrength(state, g.owner, g.cards);
   const defName = g.owner ? armyName(g.owner) : 'the mercenaries';
   if (attStr > defStr) {
-    state.discard.push(g.card);
-    const oldOwner = g.owner;
-    state.garrison = { card: unit, owner: suit };
-    army.glory += GLORY.capture;
-    addLog(state, 'battle', '🏰 ' + armyName(suit) + '\'s ' + cardLabel(unit) + ' (' + attStr +
-      ') storms the Citadel, defeating ' + defName + ' (' + defStr + ')! +' + GLORY.capture + ' glory.' +
-      (oldOwner ? '' : ''));
+    for (const c of g.cards) state.discard.push(c);
+    const fallen = takeCasualties(state, stack.cards);
+    state.garrison = { cards: stack.cards, owner: suit };
+    state.armies[suit].glory += GLORY.capture;
+    addLog(state, 'battle', '🏰 ' + armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
+      ' (' + attStr + ') storms the Citadel, destroying ' + defName + ' (' + defStr + ')! +' +
+      GLORY.capture + ' glory.' + (fallen ? ' Casualties: ' + cardLabel(fallen) + '.' : ''));
   } else {
-    state.discard.push(unit);
+    for (const c of stack.cards) state.discard.push(c);
+    const fallen = takeCasualties(state, g.cards);
     if (g.owner) state.armies[g.owner].glory += GLORY.battle;
-    addLog(state, 'battle', '🛡️ Assault repelled! ' + armyName(suit) + '\'s ' + cardLabel(unit) +
-      ' (' + attStr + ') falls to ' + defName + ' (' + defStr + ').' +
-      (g.owner ? ' +' + GLORY.battle + ' glory to ' + armyName(g.owner) + '.' : ''));
+    addLog(state, 'battle', '🛡️ Assault repelled! ' + armyName(suit) + '\'s army (' + attStr +
+      ') breaks against ' + defName + ' (' + defStr + ').' +
+      (g.owner ? ' +' + GLORY.battle + ' glory to ' + armyName(g.owner) + '.' : '') +
+      (fallen ? ' Garrison casualties: ' + cardLabel(fallen) + '.' : ''));
   }
 }
 
+/* A raid strikes an enemy army's weakest card — Jacks whittle stacks down. */
 function resolveRaid(state, attackerSuit, jack, targetSuit, roadIdx) {
   const att = state.armies[attackerSuit];
   const def = state.armies[targetSuit];
-  const target = def.road[roadIdx];
+  const stack = def.road[roadIdx];
+  const wIdx = weakestIdx(stack.cards);
+  const target = stack.cards[wIdx];
   const attStr = strength(jack) + qBonus(att);
   const defStr = strength(target) + qBonus(def);
   if (attStr > defStr) {
-    def.road[roadIdx] = null;
+    stack.cards.splice(wIdx, 1);
     state.discard.push(target);
+    if (!stack.cards.length) def.road[roadIdx] = null;
     att.glory += GLORY.battle;
     addLog(state, 'battle', '🗡️ ' + armyName(attackerSuit) + '\'s raiders (' + attStr +
-      ') cut down ' + armyName(targetSuit) + '\'s ' + cardLabel(target) + ' (' + defStr +
-      ')! +' + GLORY.battle + ' glory.');
+      ') cut ' + cardLabel(target) + ' (' + defStr + ') out of ' + armyName(targetSuit) +
+      '\'s army! +' + GLORY.battle + ' glory.');
   } else {
     def.glory += GLORY.battle;
     addLog(state, 'battle', '🛡️ ' + armyName(targetSuit) + '\'s ' + cardLabel(target) + ' (' + defStr +
@@ -222,64 +272,58 @@ function resolveRaid(state, attackerSuit, jack, targetSuit, roadIdx) {
 
 /* ── Marching ─────────────────────────────────────────────────────────── */
 
-/* All legal marches for a suit: {from: {zone:'camp'}|{zone:'road',idx},
- * dest: {zone:'road',idx}|{zone:'citadel'}, steps}. One card per road space,
- * no jumping over occupied spaces; assaulting your own garrison is illegal. */
-function computeMarchMoves(state, suit) {
+/* All marches for a suit, one plan per army that has somewhere to go:
+ * {from: {zone:'camp'|'road', idx}, dest: {zone:'road', idx}|{zone:'citadel'},
+ *  kind: 'move'|'merge'|'assault', cost}. Forward only; merging requires the
+ * combined stack to fit under STACK_CAP; assaulting your own garrison is out. */
+function computeMarchPlans(state, suit) {
   const army = state.armies[suit];
-  const maxSteps = army.posts.king ? 2 : 1;
-  const moves = [];
-  for (let i = ROAD_LEN - 1; i >= 0; i--) {
-    if (!army.road[i]) continue;
-    let pos = i;
-    for (let s = 0; s < maxSteps; s++) {
-      if (pos === ROAD_LEN - 1) {
-        if (state.garrison.owner !== suit) {
-          moves.push({ from: { zone: 'road', idx: i }, dest: { zone: 'citadel' }, steps: s + 1 });
-        }
-        break;
+  const plans = [];
+  const forward = (stack, from, destIdx) => {
+    if (destIdx >= ROAD_LEN) {
+      if (state.garrison.owner !== suit) {
+        plans.push({ from, dest: { zone: 'citadel' }, kind: 'assault', cost: marchCost(army, stack) });
       }
-      if (army.road[pos + 1]) break;
-      pos++;
-      moves.push({ from: { zone: 'road', idx: i }, dest: { zone: 'road', idx: pos }, steps: s + 1 });
+      return;
     }
-  }
-  if (army.camp.length && !army.road[0]) {
-    moves.push({ from: { zone: 'camp' }, dest: { zone: 'road', idx: 0 }, steps: 1 });
-    if (maxSteps === 2 && !army.road[1]) {
-      moves.push({ from: { zone: 'camp' }, dest: { zone: 'road', idx: 1 }, steps: 2 });
+    const ahead = army.road[destIdx];
+    if (!ahead) {
+      plans.push({ from, dest: { zone: 'road', idx: destIdx }, kind: 'move', cost: marchCost(army, stack) });
+    } else if (ahead.cards.length + stack.cards.length <= STACK_CAP) {
+      plans.push({ from, dest: { zone: 'road', idx: destIdx }, kind: 'merge', cost: marchCost(army, stack) });
     }
+  };
+  for (let i = ROAD_LEN - 1; i >= 0; i--) {
+    if (army.road[i]) forward(army.road[i], { zone: 'road', idx: i }, i + 1);
   }
-  return moves;
+  army.camp.forEach((stack, i) => forward(stack, { zone: 'camp', idx: i }, 0));
+  return plans;
 }
 
-/* Move a unit along a chosen march. campIdx picks which camp unit marches
- * (defaults to the strongest). Returns the moved unit. */
-function executeMove(state, suit, move, campIdx) {
+function stackAt(army, from) {
+  return from.zone === 'camp' ? army.camp[from.idx] : army.road[from.idx];
+}
+
+function executePlan(state, suit, plan) {
   const army = state.armies[suit];
-  let unit;
-  if (move.from.zone === 'camp') {
-    let idx = campIdx;
-    if (idx === undefined || idx === null || !army.camp[idx]) {
-      idx = 0;
-      for (let i = 1; i < army.camp.length; i++) {
-        if (strength(army.camp[i]) > strength(army.camp[idx])) idx = i;
-      }
-    }
-    unit = army.camp.splice(idx, 1)[0];
+  const stack = stackAt(army, plan.from);
+  if (plan.from.zone === 'camp') army.camp.splice(plan.from.idx, 1);
+  else army.road[plan.from.idx] = null;
+  if (plan.kind === 'assault') {
+    addLog(state, 'player', armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
+      ' marches on the Citadel!');
+    resolveAssault(state, suit, stack);
+  } else if (plan.kind === 'merge') {
+    const ahead = army.road[plan.dest.idx];
+    ahead.cards.push.apply(ahead.cards, stack.cards);
+    addLog(state, 'player', armyName(suit) + ' merges its armies into ' +
+      stackLabel(ahead.cards) + ' (strength ' + stackSum(ahead.cards) + ') on road space ' +
+      (plan.dest.idx + 1) + '.');
   } else {
-    unit = army.road[move.from.idx];
-    army.road[move.from.idx] = null;
+    army.road[plan.dest.idx] = stack;
+    addLog(state, 'player', armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
+      ' marches to road space ' + (plan.dest.idx + 1) + '.');
   }
-  if (move.dest.zone === 'citadel') {
-    addLog(state, 'player', armyName(suit) + '\'s ' + cardLabel(unit) + ' marches on the Citadel!');
-    resolveAssault(state, suit, unit);
-  } else {
-    army.road[move.dest.idx] = unit;
-    addLog(state, 'player', armyName(suit) + '\'s ' + cardLabel(unit) + ' marches to road space ' +
-      (move.dest.idx + 1) + '.');
-  }
-  return unit;
 }
 
 /* ── Human actions (act on the current army; validated) ───────────────── */
@@ -307,7 +351,9 @@ function discardFromHand(state, handIdx) {
   return { ok: true };
 }
 
-function deploy(state, handIdx) {
+/* Deploy a card of your suit. target: {zone:'newcamp'} starts a fresh army;
+ * {zone:'camp'|'road', idx} or {zone:'garrison'} reinforces that army. */
+function deployCard(state, handIdx, target) {
   const g = humanGuard(state);
   if (!g.ok) return g;
   const army = g.army;
@@ -317,17 +363,53 @@ function deploy(state, handIdx) {
   if (card.rank === 'Q') {
     if (army.posts.queen) return { ok: false, msg: 'Your Banner is already raised.' };
     army.posts.queen = card;
-    addLog(state, 'player', armyName(army.suit) + ' raises the Banner (Q): all their units now fight at +2.');
+    addLog(state, 'player', armyName(army.suit) + ' raises the Banner (Q): all their armies now fight at +2.');
   } else if (card.rank === 'K') {
     if (army.posts.king) return { ok: false, msg: 'Your General is already in camp.' };
     army.posts.king = card;
-    addLog(state, 'player', armyName(army.suit) + '\'s General (K) takes command: marches now move up to 2 spaces.');
+    addLog(state, 'player', armyName(army.suit) + '\'s General (K) takes command: marches cost 1 less supply.');
+  } else if (!target || target.zone === 'newcamp') {
+    army.camp.push({ cards: [card] });
+    addLog(state, 'player', armyName(army.suit) + ' musters a new army: ' + cardLabel(card) +
+      ' (strength ' + strength(card) + ').');
   } else {
-    army.camp.push(card);
-    addLog(state, 'player', armyName(army.suit) + ' musters ' + cardLabel(card) +
-      ' (strength ' + strength(card) + ') in camp.');
+    let cards;
+    if (target.zone === 'garrison') {
+      if (state.garrison.owner !== army.suit) return { ok: false, msg: 'You can only reinforce your own garrison.' };
+      cards = state.garrison.cards;
+    } else {
+      const stack = stackAt(army, target);
+      if (!stack) return { ok: false, msg: 'No army there.' };
+      cards = stack.cards;
+    }
+    if (cards.length >= STACK_CAP) return { ok: false, msg: 'That army is full (' + STACK_CAP + ' cards).' };
+    cards.push(card);
+    addLog(state, 'player', armyName(army.suit) + ' reinforces an army: now ' +
+      stackLabel(cards) + ' (strength ' + stackSum(cards) + ').');
   }
   army.hand.splice(handIdx, 1);
+  spendAction(state);
+  return { ok: true };
+}
+
+/* March the army at `from` along its (single) forward plan. Supply cards are
+ * taken from the hand automatically. */
+function march(state, from) {
+  const g = humanGuard(state);
+  if (!g.ok) return g;
+  const army = g.army;
+  const plan = computeMarchPlans(state, army.suit).find(p =>
+    p.from.zone === from.zone && p.from.idx === from.idx);
+  if (!plan) return { ok: false, msg: 'That army has nowhere to march.' };
+  const supplies = supplyIndices(army);
+  if (supplies.length < plan.cost) {
+    return { ok: false, msg: 'Marching that army costs ' + plan.cost + ' supply — you have ' + supplies.length + '.' };
+  }
+  for (let i = plan.cost - 1; i >= 0; i--) {
+    state.discard.push(army.hand.splice(supplies[i], 1)[0]);
+  }
+  addLog(state, 'player', armyName(army.suit) + ' spends ' + plan.cost + ' supply.');
+  executePlan(state, army.suit, plan);
   spendAction(state);
   return { ok: true };
 }
@@ -342,7 +424,7 @@ function raid(state, handIdx, targetSuit, roadIdx) {
   }
   const defender = state.armies[targetSuit];
   if (!defender || targetSuit === army.suit || !defender.road[roadIdx]) {
-    return { ok: false, msg: 'Pick an enemy unit on a road to raid.' };
+    return { ok: false, msg: 'Pick an enemy army on a road to raid.' };
   }
   army.hand.splice(handIdx, 1);
   resolveRaid(state, army.suit, card, targetSuit, roadIdx);
@@ -350,40 +432,21 @@ function raid(state, handIdx, targetSuit, roadIdx) {
   return { ok: true };
 }
 
-function marchTo(state, supplyIdx, dest, campIdx) {
-  const g = humanGuard(state);
-  if (!g.ok) return g;
-  const army = g.army;
-  const supply = army.hand[supplyIdx];
-  if (!supply || supply.suit === army.suit) {
-    return { ok: false, msg: 'Marching is paid with an off-suit (supply) card.' };
-  }
-  const moves = computeMarchMoves(state, army.suit);
-  const move = moves.find(m =>
-    m.dest.zone === dest.zone && (dest.zone === 'citadel' || m.dest.idx === dest.idx));
-  if (!move) return { ok: false, msg: 'No unit can march there.' };
-  army.hand.splice(supplyIdx, 1);
-  state.discard.push(supply);
-  executeMove(state, army.suit, move, campIdx);
-  spendAction(state);
-  return { ok: true };
-}
-
 /* ── The automated-army script ────────────────────────────────────────── *
- * One flip: own suit → deploy (Jack raids if it has a target; Q/K take their
- * posts). Any other suit → supply: the frontmost unit marches as far as it
- * can; with no unit able to move, the strongest camp unit steps out; with no
- * units at all, the supply is wasted. Fully deterministic. */
+ * One flip: own suit → Q/K take posts, the Jack raids (or reinforces when
+ * there is nothing to raid), anything else reinforces the most forward army
+ * with room (garrison first, then road, then camp) or founds a new one.
+ * Any other suit → one banked supply; the frontmost army marches as soon as
+ * the bank covers its cost. At a real table the bank is just a face-up pile. */
 
 function npcRaidTarget(state, suit) {
   let best = null;
-  // Clockwise from the acting army's seat for the final tiebreak.
   for (let d = 1; d < SUITS.length; d++) {
     const enemy = SUITS[(SUITS.indexOf(suit) + d) % SUITS.length];
     const road = state.armies[enemy].road;
     for (let i = 0; i < ROAD_LEN; i++) {
       if (!road[i]) continue;
-      const cand = { suit: enemy, idx: i, str: strength(road[i]) };
+      const cand = { suit: enemy, idx: i, str: stackSum(road[i].cards) };
       if (!best || cand.idx > best.idx || (cand.idx === best.idx && cand.str > best.str)) {
         best = cand;
       }
@@ -392,15 +455,26 @@ function npcRaidTarget(state, suit) {
   return best;
 }
 
-function npcPickMove(moves) {
-  // The frontmost unit (highest road index; camp last) moving its farthest.
-  let best = null;
-  for (const m of moves) {
-    const fromRank = m.from.zone === 'camp' ? -1 : m.from.idx;
-    const bestRank = best ? (best.from.zone === 'camp' ? -1 : best.from.idx) : -2;
-    if (!best || fromRank > bestRank || (fromRank === bestRank && m.steps > best.steps)) best = m;
+function npcReinforce(state, army, card) {
+  const targets = [];
+  if (state.garrison.owner === army.suit && state.garrison.cards.length < STACK_CAP) {
+    targets.push(state.garrison.cards);
   }
-  return best;
+  for (let i = ROAD_LEN - 1; i >= 0; i--) {
+    if (army.road[i] && army.road[i].cards.length < STACK_CAP) targets.push(army.road[i].cards);
+  }
+  for (const stack of army.camp) {
+    if (stack.cards.length < STACK_CAP) targets.push(stack.cards);
+  }
+  if (targets.length) {
+    targets[0].push(card);
+    addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
+      ' — reinforces an army: now ' + stackLabel(targets[0]) + ' (strength ' + stackSum(targets[0]) + ').');
+  } else {
+    army.camp.push({ cards: [card] });
+    addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
+      ' — musters a new army (strength ' + strength(card) + ').');
+  }
 }
 
 function npcFlip(state) {
@@ -415,35 +489,34 @@ function npcFlip(state) {
     if (card.rank === 'Q' && !army.posts.queen) {
       army.posts.queen = card;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-        ' — raises its Banner: units fight at +2.');
+        ' — raises its Banner: armies fight at +2.');
     } else if (card.rank === 'K' && !army.posts.king) {
       army.posts.king = card;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-        ' — its General takes command: marches move up to 2.');
+        ' — its General takes command: marches cost 1 less.');
     } else if (card.rank === 'J') {
       const target = npcRaidTarget(state, army.suit);
       if (target) {
         addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) + ' — raiders ride out!');
         resolveRaid(state, army.suit, card, target.suit, target.idx);
       } else {
-        army.camp.push(card);
-        addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-          ' — no one to raid; the Jack joins the camp (strength 11).');
+        npcReinforce(state, army, card);
       }
     } else {
-      army.camp.push(card);
-      addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-        ' — musters it in camp (strength ' + strength(card) + ').');
+      npcReinforce(state, army, card);
     }
   } else {
-    const moves = computeMarchMoves(state, army.suit);
+    army.supply++;
     state.discard.push(card);
-    if (!moves.length) {
+    const plan = computeMarchPlans(state, army.suit)[0]; // plans are frontmost-first
+    if (plan && army.supply >= plan.cost) {
+      army.supply -= plan.cost;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-        ' — supplies, but no unit can move.');
+        ' — supplies complete (' + plan.cost + ' spent), the army marches!');
+      executePlan(state, army.suit, plan);
     } else {
-      addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) + ' — supplies a march.');
-      executeMove(state, army.suit, npcPickMove(moves));
+      addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
+        ' — banks supply (' + army.supply + (plan ? ' of ' + plan.cost + ' needed' : '') + ').');
     }
   }
   if (state.over) return;
@@ -453,8 +526,9 @@ function npcFlip(state) {
 
 if (typeof module !== 'undefined') {
   module.exports = {
-    ROAD_LEN, HAND_LIMIT, ACTIONS_PER_TURN, NPC_FLIPS, SEASONS, GLORY, HUMAN_SEATS,
-    createGame, currentArmy, qBonus, unitsOnBoard, computeMarchMoves,
-    deploy, raid, marchTo, passTurn, npcFlip, discardFromHand,
+    ROAD_LEN, STACK_CAP, HAND_LIMIT, ACTIONS_PER_TURN, NPC_FLIPS, SEASONS, GLORY, HUMAN_SEATS,
+    createGame, currentArmy, qBonus, stackSum, stackLabel, effStrength, marchCost,
+    supplyIndices, computeMarchPlans,
+    deployCard, march, raid, passTurn, npcFlip, discardFromHand,
   };
 }

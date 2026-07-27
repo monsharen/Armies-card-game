@@ -1,9 +1,17 @@
 /* Four Banners — game page UI. Renders the engine state and wires up input.
- * The engine is pure; everything DOM lives here. */
+ * The engine is pure; everything DOM lives here.
+ *
+ * Interaction model:
+ *  - Click a card of your suit  → deploy mode (pick an army to reinforce, or
+ *    found a new one). Q/K post instantly; the Jack offers raid-or-deploy.
+ *  - Click one of your armies   → march mode (its forward destination lights
+ *    up with the move/merge/assault and the supply cost). Supply cards are
+ *    spent from your hand automatically.
+ */
 
 let game = null;
 const ui = {
-  mode: null,          // null | {type:'march'|'raid'|'jack'|'camp', ...}
+  mode: null,          // null | {type:'deploy'|'jack'|'raid', handIdx} | {type:'march', from}
   revealedSuit: null,  // hot-seat: which human's hand is currently shown
   npcTimer: null,
   numHumans: 1,
@@ -78,6 +86,10 @@ function raidTargetsExist() {
   return SUITS.some(s => s !== suit && game.armies[s].road.some(Boolean));
 }
 
+function myPlans() {
+  return computeMarchPlans(game, currentArmy(game).suit);
+}
+
 function onHandClick(i) {
   if (!myTurn()) return;
   const army = currentArmy(game);
@@ -89,23 +101,23 @@ function onHandClick(i) {
     return;
   }
   ui.mode = null;
-  if (card.suit === army.suit) {
-    if (card.rank === 'J' && raidTargetsExist()) {
-      ui.mode = { type: 'jack', handIdx: i };
-      render();
-      return;
-    }
-    const res = deploy(game, i);
+  if (card.suit !== army.suit) {
+    toast('Off-suit cards are supply — click one of your armies to march it.');
+    render();
+    return;
+  }
+  if (card.rank === 'Q' || card.rank === 'K') {
+    const res = deployCard(game, i, null);
     if (!res.ok) { toast(res.msg); return; }
     afterEngineCall();
-  } else {
-    if (!computeMarchMoves(game, army.suit).length) {
-      toast('No unit can march — muster a soldier first.');
-      return;
-    }
-    ui.mode = { type: 'march', supplyIdx: i };
-    render();
+    return;
   }
+  if (card.rank === 'J' && raidTargetsExist()) {
+    ui.mode = { type: 'jack', handIdx: i };
+  } else {
+    ui.mode = { type: 'deploy', handIdx: i };
+  }
+  render();
 }
 
 function chooseJackRaid() {
@@ -114,47 +126,66 @@ function chooseJackRaid() {
 }
 
 function chooseJackDeploy() {
-  const idx = ui.mode.handIdx;
+  ui.mode = { type: 'deploy', handIdx: ui.mode.handIdx };
+  render();
+}
+
+function deployTo(targetJson) {
+  if (!myTurn() || !ui.mode || ui.mode.type !== 'deploy') return;
+  const res = deployCard(game, ui.mode.handIdx, JSON.parse(targetJson));
   ui.mode = null;
-  const res = deploy(game, idx);
+  if (!res.ok) toast(res.msg);
+  afterEngineCall();
+}
+
+function startMarch(zone, idx) {
+  if (!myTurn()) return;
+  const army = currentArmy(game);
+  const plan = myPlans().find(p => p.from.zone === zone && p.from.idx === idx);
+  if (!plan) { toast('That army has nowhere to march.'); return; }
+  if (supplyIndices(army).length < plan.cost) {
+    toast('Marching that army costs ' + plan.cost + ' supply — you have ' +
+      supplyIndices(army).length + '.');
+    return;
+  }
+  ui.mode = { type: 'march', from: { zone, idx } };
+  render();
+}
+
+function confirmMarch() {
+  if (!myTurn() || !ui.mode || ui.mode.type !== 'march') return;
+  const res = march(game, ui.mode.from);
+  ui.mode = null;
   if (!res.ok) toast(res.msg);
   afterEngineCall();
 }
 
 function onCellClick(zone, suit, idx) {
-  if (!myTurn() || !ui.mode) return;
+  if (!myTurn()) return;
   const army = currentArmy(game);
-  if (ui.mode.type === 'raid') {
-    if (suit === army.suit || zone !== 'road' || !game.armies[suit].road[idx]) return;
+  if (ui.mode && ui.mode.type === 'raid') {
+    if (zone !== 'road' || suit === army.suit || !game.armies[suit].road[idx]) return;
     const res = raid(game, ui.mode.handIdx, suit, idx);
     ui.mode = null;
     if (!res.ok) toast(res.msg);
     afterEngineCall();
     return;
   }
-  if (ui.mode.type === 'march') {
-    const dest = zone === 'citadel' ? { zone: 'citadel' } : { zone: 'road', idx };
-    if (zone === 'road' && suit !== army.suit) return;
-    const move = computeMarchMoves(game, army.suit).find(m =>
-      m.dest.zone === dest.zone && (dest.zone === 'citadel' || m.dest.idx === dest.idx));
-    if (!move) return;
-    if (move.from.zone === 'camp' && army.camp.length > 1) {
-      ui.mode = { type: 'camp', supplyIdx: ui.mode.supplyIdx, dest };
-      render();
-      return;
-    }
-    const res = marchTo(game, ui.mode.supplyIdx, dest);
-    ui.mode = null;
-    if (!res.ok) toast(res.msg);
-    afterEngineCall();
+  if (ui.mode && ui.mode.type === 'deploy') {
+    if (zone === 'citadel') { deployTo(JSON.stringify({ zone: 'garrison' })); return; }
+    if (zone === 'road' && suit === army.suit) { deployTo(JSON.stringify({ zone: 'road', idx })); return; }
+    return;
   }
-}
-
-function pickCampUnit(campIdx) {
-  const res = marchTo(game, ui.mode.supplyIdx, ui.mode.dest, campIdx);
-  ui.mode = null;
-  if (!res.ok) toast(res.msg);
-  afterEngineCall();
+  if (ui.mode && ui.mode.type === 'march') {
+    const plan = myPlans().find(p => p.from.zone === ui.mode.from.zone && p.from.idx === ui.mode.from.idx);
+    if (!plan) { ui.mode = null; render(); return; }
+    const hit = plan.dest.zone === 'citadel' ? zone === 'citadel'
+      : zone === 'road' && suit === army.suit && idx === plan.dest.idx;
+    if (hit) confirmMarch();
+    return;
+  }
+  // No mode: clicking one of your road armies begins a march.
+  if (zone === 'road' && suit === army.suit && game.armies[suit].road[idx]) startMarch('road', idx);
 }
 
 function cancelMode() {
@@ -192,68 +223,68 @@ function pcardHTML(card, cls) {
     '<span class="pc-suit">' + meta.symbol + '</span></div>';
 }
 
-function marchDestsForRender() {
-  if (!ui.mode || (ui.mode.type !== 'march' && ui.mode.type !== 'camp')) return null;
-  const suit = currentArmy(game).suit;
-  const dests = { citadel: false, road: {} };
-  for (const m of computeMarchMoves(game, suit)) {
-    if (m.dest.zone === 'citadel') dests.citadel = true;
-    else dests.road[m.dest.idx] = true;
-  }
-  return { suit, dests };
+function stackHTML(state, ownerSuit, cards) {
+  const str = effStrength(state, ownerSuit, cards);
+  return '<div class="stack" title="' + stackLabel(cards) + ' — strength ' + str +
+    (ownerSuit && qBonus(state.armies[ownerSuit]) ? ' (incl. Banner +2)' : '') + '">' +
+    cards.map(c => pcardHTML(c, 'mini')).join('') +
+    '<span class="str-badge">' + str + '</span></div>';
 }
 
 function renderBoard() {
-  const raidMode = ui.mode && ui.mode.type === 'raid';
-  const march = marchDestsForRender();
-  const mySuit = game && currentArmy(game).suit;
+  const army = game ? currentArmy(game) : null;
+  const mySuit = army ? army.suit : null;
+  const mode = ui.mode ? ui.mode.type : null;
+  const plans = myTurn() && army.isHuman ? myPlans() : [];
+  const nSupply = army && army.isHuman ? supplyIndices(army).length : 0;
+  const marchPlan = mode === 'march'
+    ? plans.find(p => p.from.zone === ui.mode.from.zone && p.from.idx === ui.mode.from.idx) : null;
   let html = '';
 
   for (const suit of SUITS) {
-    const army = game.armies[suit];
+    const a = game.armies[suit];
     const pos = BOARD_POS[suit];
     const meta = SUIT_META[suit];
 
-    // Camp
-    const campStack = army.camp.slice(-4).map(c => pcardHTML(c, 'mini')).join('');
-    const posts = (army.posts.queen ? '<span class="post" title="Banner: units fight at +2">Q</span>' : '') +
-      (army.posts.king ? '<span class="post" title="General: marches move up to 2">K</span>' : '');
+    // Camp: summary chips (the acting player's camp is detailed below the board)
+    const chips = a.camp.map(s =>
+      '<span class="army-chip" title="' + stackLabel(s.cards) + '">' + stackSum(s.cards) + '</span>').join('');
+    const posts = (a.posts.queen ? '<span class="post" title="Banner: armies fight at +2">Q</span>' : '') +
+      (a.posts.king ? '<span class="post" title="General: marches cost 1 less">K</span>' : '');
+    const supplyNote = !a.isHuman && a.supply ? '<span class="supply-note" title="Banked supply">⛽' + a.supply + '</span>' : '';
     html += '<div class="cell camp suit-' + suit + '" style="grid-row:' + pos.camp[0] + ';grid-column:' + pos.camp[1] + '"' +
-      ' title="' + armyName(suit) + ' camp — ' + army.camp.length + ' unit(s) mustered">' +
-      '<div class="camp-head">' + meta.symbol + (army.camp.length ? ' ×' + army.camp.length : '') + posts + '</div>' +
-      '<div class="camp-stack">' + campStack + '</div></div>';
+      ' title="' + armyName(suit) + ' camp — ' + a.camp.length + ' army(ies)">' +
+      '<div class="camp-head">' + meta.symbol + posts + supplyNote + '</div>' +
+      '<div class="camp-chips">' + chips + '</div></div>';
 
     // Road spaces
     for (let i = 0; i < ROAD_LEN; i++) {
       const [row, col] = pos.road[i];
-      const unit = army.road[i];
+      const stack = a.road[i];
       const classes = ['cell', 'road', 'suit-' + suit];
-      let click = '';
-      if (raidMode && unit && suit !== mySuit) {
-        classes.push('targetable');
-        click = ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"';
-      } else if (march && suit === march.suit && !unit && march.dests.road[i]) {
-        classes.push('targetable');
-        click = ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"';
-      }
+      let click = ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"';
+      if (mode === 'raid' && stack && suit !== mySuit) classes.push('targetable');
+      else if (mode === 'deploy' && stack && suit === mySuit && stack.cards.length < STACK_CAP) classes.push('targetable');
+      else if (marchPlan && marchPlan.dest.zone === 'road' && suit === mySuit && i === marchPlan.dest.idx) classes.push('targetable');
+      else if (!mode && stack && suit === mySuit &&
+        plans.some(p => p.from.zone === 'road' && p.from.idx === i && p.cost <= nSupply)) classes.push('movable');
       html += '<div class="' + classes.join(' ') + '" style="grid-row:' + row + ';grid-column:' + col + '"' + click + '>' +
-        (unit ? pcardHTML(unit, 'mini') : '') + '</div>';
+        (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }
   }
 
   // Citadel
   const g = game.garrison;
   const citClasses = ['cell', 'citadel'];
-  let citClick = '';
-  if (march && march.dests.citadel) {
-    citClasses.push('targetable');
-    citClick = ' onclick="onCellClick(\'citadel\',null,0)"';
-  }
+  if (marchPlan && marchPlan.dest.zone === 'citadel') citClasses.push('targetable');
+  else if (mode === 'deploy' && g.owner === mySuit && g.cards.length < STACK_CAP) citClasses.push('targetable');
   if (g.owner) citClasses.push('owner-' + g.owner);
-  const defStr = strength(g.card) + (g.owner ? qBonus(game.armies[g.owner]) : 0);
-  html += '<div class="' + citClasses.join(' ') + '" style="grid-row:5;grid-column:5"' + citClick +
-    ' title="Citadel — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') + ', defends at ' + defStr + '">' +
-    '<span class="crown">👑</span>' + pcardHTML(g.card, 'mini') + '</div>';
+  html += '<div class="' + citClasses.join(' ') + '" style="grid-row:5;grid-column:5"' +
+    ' onclick="onCellClick(\'citadel\',null,0)"' +
+    ' title="Citadel — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') +
+    ', defends at ' + effStrength(game, g.owner, g.cards) + '. Pays ' + GLORY.tribute +
+    ' glory per turn to its holder.">' +
+    '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) + '</div>';
 
   document.getElementById('board').innerHTML = html;
 }
@@ -270,19 +301,42 @@ function renderHand() {
       : 'Automated armies are moving…') + '</p>';
     return;
   }
-  const army = game.armies[handSuit];
+  const a = game.armies[handSuit];
   const active = myTurn() && handSuit === cur.suit;
   const discarding = active && game.pendingDiscard > 0;
-  let html = '<h3>' + armyName(handSuit) + ' — your hand' +
-    (discarding ? ' <span class="bad">(discard ' + game.pendingDiscard + ')</span>' : '') + '</h3>' +
+  const mode = active && ui.mode ? ui.mode.type : null;
+  const plans = active ? myPlans() : [];
+  const nSupply = supplyIndices(a).length;
+
+  // Camp strip: your armies at home, clickable to march or reinforce.
+  let campHtml = '<div class="camp-strip"><h3>Your camp</h3><div class="camp-armies">';
+  campHtml += a.camp.map((s, i) => {
+    const cls = ['camp-army'];
+    if (mode === 'deploy' && s.cards.length < STACK_CAP) cls.push('targetable');
+    else if (!mode && plans.some(p => p.from.zone === 'camp' && p.from.idx === i && p.cost <= nSupply)) cls.push('movable');
+    else if (mode === 'march' && ui.mode.from.zone === 'camp' && ui.mode.from.idx === i) cls.push('selected-army');
+    const click = mode === 'deploy' ? 'deployTo(\'' + JSON.stringify({ zone: 'camp', idx: i }).replace(/"/g, '&quot;') + '\')'
+      : 'startMarch(\'camp\',' + i + ')';
+    return '<div class="' + cls.join(' ') + '" onclick="' + (active ? click : '') + '">' +
+      stackHTML(game, handSuit, s.cards) + '</div>';
+  }).join('');
+  if (mode === 'deploy') {
+    campHtml += '<div class="camp-army targetable new-army" onclick="deployTo(\'' +
+      JSON.stringify({ zone: 'newcamp' }).replace(/"/g, '&quot;') + '\')">➕<br>new army</div>';
+  }
+  if (!a.camp.length && mode !== 'deploy') campHtml += '<p class="hint">No armies mustered.</p>';
+  campHtml += '</div></div>';
+
+  let html = campHtml + '<h3>' + armyName(handSuit) + ' — your hand' +
+    (discarding ? ' <span class="bad">(discard ' + game.pendingDiscard + ')</span>' : '') +
+    ' <span class="supply-count">⛽ ' + nSupply + ' supply</span></h3>' +
     '<div class="hand-cards">';
-  html += army.hand.map((card, i) => {
+  html += a.hand.map((card, i) => {
     const own = card.suit === handSuit;
     const classes = [];
-    if (active) classes.push('playable');
+    if (active && (own || discarding)) classes.push('playable');
     if (!own) classes.push('supply');
-    if (ui.mode && (ui.mode.type === 'march' || ui.mode.type === 'camp') && ui.mode.supplyIdx === i) classes.push('selected');
-    if (ui.mode && (ui.mode.type === 'jack' || ui.mode.type === 'raid') && ui.mode.handIdx === i) classes.push('selected');
+    if (ui.mode && ui.mode.handIdx === i && (mode === 'deploy' || mode === 'jack' || mode === 'raid')) classes.push('selected');
     const tag = own ? (card.rank === 'J' ? 'raider' : card.rank === 'Q' ? 'banner' :
       card.rank === 'K' ? 'general' : card.rank === 'A' ? 'champion' : 'soldier') : 'supply';
     return '<div class="hand-slot"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
@@ -327,26 +381,32 @@ function renderSidebar() {
   }
   let html = '<p><strong>' + armyName(cur.suit) + '</strong> — ' + game.actionsLeft +
     ' action' + (game.actionsLeft === 1 ? '' : 's') + ' left.</p>';
+  const mode = ui.mode ? ui.mode.type : null;
   if (game.pendingDiscard > 0) {
     html += '<p class="prompt bad">Hand over limit — click ' + game.pendingDiscard + ' card(s) to discard.</p>';
-  } else if (ui.mode && ui.mode.type === 'jack') {
+  } else if (mode === 'jack') {
     html += '<p class="prompt">Your Jack can raid or fight in the ranks:</p>' +
-      '<button class="btn" onclick="chooseJackRaid()">🗡️ Raid an enemy unit</button> ' +
+      '<button class="btn" onclick="chooseJackRaid()">🗡️ Raid an enemy army</button> ' +
       '<button class="btn" onclick="chooseJackDeploy()">🛡️ Deploy as soldier (11)</button> ' +
       '<button class="btn" onclick="cancelMode()">Cancel</button>';
-  } else if (ui.mode && ui.mode.type === 'raid') {
-    html += '<p class="prompt">Click an enemy unit on a road to raid it (you strike at ' +
-      (11 + qBonus(cur)) + ').</p><button class="btn" onclick="cancelMode()">Cancel</button>';
-  } else if (ui.mode && ui.mode.type === 'march') {
-    html += '<p class="prompt">Click a highlighted space (or the Citadel) to march there.</p>' +
-      '<button class="btn" onclick="cancelMode()">Cancel</button>';
-  } else if (ui.mode && ui.mode.type === 'camp') {
-    html += '<p class="prompt">Which camp unit marches?</p>' +
-      cur.camp.map((c, i) => '<button class="btn camp-pick" onclick="pickCampUnit(' + i + ')">' +
-        cardLabel(c) + ' (' + strength(c) + ')</button>').join(' ') +
-      ' <button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (mode === 'raid') {
+    html += '<p class="prompt">Click an enemy army — your raiders (' + (11 + qBonus(cur)) +
+      ') strike its weakest card.</p><button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (mode === 'deploy') {
+    html += '<p class="prompt">Reinforce a highlighted army (max ' + STACK_CAP +
+      ' cards), or found a new one in camp.</p><button class="btn" onclick="cancelMode()">Cancel</button>';
+  } else if (mode === 'march') {
+    const plan = myPlans().find(p => p.from.zone === ui.mode.from.zone && p.from.idx === ui.mode.from.idx);
+    if (plan) {
+      const what = plan.kind === 'assault' ? 'assault the Citadel' :
+        plan.kind === 'merge' ? 'merge with your army ahead' : 'advance one space';
+      html += '<p class="prompt">This army will <strong>' + what + '</strong> for ' +
+        plan.cost + ' supply (you have ' + supplyIndices(cur).length +
+        '). Click the highlighted space.</p>';
+    }
+    html += '<button class="btn" onclick="cancelMode()">Cancel</button>';
   } else {
-    html += '<p class="prompt">Click a card: your suit deploys · other suits supply a march.</p>' +
+    html += '<p class="prompt">Click a card of your suit to deploy · click one of your armies to march it.</p>' +
       '<button class="btn" onclick="onEndTurn()">Hold position (end turn)</button>';
   }
   panel.innerHTML = html;
