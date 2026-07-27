@@ -437,7 +437,7 @@ function renderActionModal() {
     } else if (m.type === 'deploy') {
       const card = cur.hand[m.handIdx];
       title = 'Deploy ' + cardLabel(card) + ' (strength ' + strength(card) + ')';
-      body = '<p>Where does it serve?</p>' +
+      body = '<p>Recruits muster in camp — armies that have marched out are on their own.</p>' +
         amOption('modalDeploy(\'' + targetArg({ zone: 'newcamp' }) + '\')', '➕ Found a new army in camp', 'Starts a fresh 1-card army.');
       cur.camp.forEach((s, i) => {
         if (s.cards.length < STACK_CAP) {
@@ -446,18 +446,6 @@ function renderActionModal() {
             'Becomes strength ' + (stackSum(s.cards) + strength(card)) + ' of max ' + STACK_CAP + ' cards.');
         }
       });
-      cur.road.forEach((s, i) => {
-        if (s && s.cards.length < STACK_CAP) {
-          body += amOption('modalDeploy(\'' + targetArg({ zone: 'road', idx: i }) + '\')',
-            'Reinforce on road space ' + (i + 1) + ': ' + stackLabel(s.cards),
-            'Becomes strength ' + (stackSum(s.cards) + strength(card)) + '.');
-        }
-      });
-      if (game.garrison.owner === cur.suit && game.garrison.cards.length < STACK_CAP) {
-        body += amOption('modalDeploy(\'' + targetArg({ zone: 'garrison' }) + '\')',
-          '👑 Reinforce the Kartenburg garrison: ' + stackLabel(game.garrison.cards),
-          'Becomes strength ' + (stackSum(game.garrison.cards) + strength(card)) + '.');
-      }
     } else if (m.type === 'raid') {
       const attStr = 11 + qBonus(cur);
       title = '🗡️ Choose a raid target';
