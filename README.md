@@ -12,13 +12,20 @@ browser, or host it with GitHub Pages.
 
 Each suit is an army. You build fighting hosts by stacking up to three cards of your
 suit into a single army whose strength is their sum: pips are soldiers, the Ace a
-champion (11), the Jack a raider that snipes the weakest card out of an enemy stack,
-the Queen a banner (+2 to all your battles) and the King a general (marches cost 1
-less). Off-suit cards are supply — a march costs one per card in the stack, so heavy
-hosts move slowly. Armies merge on the road, storm Kartenburg (battles compare stack
-totals, defender wins ties, the winner loses its weakest card as casualties), and
-Kartenburg pays its holder +1 glory every turn — the clock that punishes waiting for
-perfect cards. Captures score 5, raids and defenses 1. Two seasons, most glory wins.
+champion (11), the Jack a raider that snipes the weakest card out of an enemy stack —
+or infiltrates a camp to strike a Banner or General — the Queen a banner (+2 to all
+your battles) and the King a general (marches cost 1 less). Off-suit cards are
+supply — a march costs one per card in the stack, so heavy hosts move slowly (too
+much supply can be foraged: 2 supply → 1 card). Armies merge on the road and storm
+Kartenburg: battles compare stack totals, defender wins ties, the winner loses its
+weakest card as casualties, and a defender may commit one reserve card from hand
+before any battle resolves. Kartenburg pays its holder +1 glory every turn and +2
+when a season turns — the clock that punishes waiting for perfect cards. Captures
+score 5, raids and defenses 1, and a repelled assault that still bloodies the
+garrison pays the attacker +1 siege glory. Later seats start with extra cards or
+banked supply to offset the first-mover advantage. Two seasons (each season ends
+only when its final round completes, so every seat gets equal turns), most glory
+wins.
 
 Automated armies hold no hand: their turn is two card flips — own suit reinforces
 their most forward army, anything else banks supply until the frontmost army can
@@ -67,8 +74,9 @@ const state = engine.createGame(0); // 0 humans = four automated armies
 while (!state.over) engine.npcFlip(state);
 ```
 
-Human seats are driven with `engine.deploy`, `engine.marchTo`, `engine.raid`,
-`engine.discardFromHand` and `engine.passTurn`.
+Human seats are driven with `engine.deployCard`, `engine.march`, `engine.raid`,
+`engine.raidPost`, `engine.forage`, `engine.discardFromHand` and `engine.passTurn`;
+pending defenses (reserve decisions) resolve via `engine.resolvePendingBattle`.
 
 ## Hosting on GitHub Pages
 
