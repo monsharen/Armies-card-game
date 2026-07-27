@@ -34,8 +34,10 @@
                  [ 1 ]
                  [♣ camp]
     </pre>
-    <p><strong>Setup:</strong> deal 4 to each human; flip <strong>2 cards</strong> onto
-    Kartenburg as the mercenary garrison (strength = their sum).</p>
+    <p><strong>Setup:</strong> deal each human 4 cards <strong>plus a seat bonus</strong>
+    (♥ +0, ♠ +2, ♦ +3, ♣ +3); automated armies instead start with banked supply
+    (♥ 0, ♠ 2, ♦ 3, ♣ 4). Flip <strong>2 cards</strong> onto Kartenburg as the mercenary
+    garrison (strength = their sum).</p>
 
     <h2>Armies</h2>
     <p>An army = a stack of up to <strong>3 cards</strong> of your suit on one space.
@@ -43,11 +45,13 @@
     space; camp holds any number.</p>
     <table>
       <tr><th>2–10</th><td>Soldier (pips)</td><th>A</th><td>Champion (11)</td></tr>
-      <tr><th>J</th><td>Raider (11): strikes the <em>weakest card</em> of any enemy road army, then discard — or deploys as a soldier</td>
+      <tr><th>J</th><td>Raider (11): strikes the <em>weakest card</em> of any enemy road army, or
+          <em>infiltrates a camp</em> (at 11 +2, + your Q) to strike an enemy Q or K post
+          (they defend at 12 / 13); the Jack is discarded after — or deploys as a soldier</td>
           <th>Q / K</th><td>Camp posts. Q: all your armies +2. K: marches cost 1 less supply</td></tr>
     </table>
     <p><strong>Other suits = supply</strong>: a march costs 1 supply per card in the stack
-    (K: −1, min 1).</p>
+    (K: −1, min 1). <strong>Forage</strong> (action): discard 2 supply to draw 1 card.</p>
 
     <h2>Player turn</h2>
     <ol>
@@ -57,7 +61,7 @@
       <strong>camp</strong> army, max 3 — marching armies and the garrison can't be
       reinforced) · <em>March</em> one space (pay supply; onto
       your own army = <em>merge</em> if ≤3; from the gate = <em>assault</em>) ·
-      <em>Raid</em> with your Jack.</li>
+      <em>Raid</em> with your Jack · <em>Forage</em> (2 supply → 1 card).</li>
     </ol>
 
     <h2>Battle</h2>
@@ -65,6 +69,11 @@
     <strong>Defender wins ties.</strong> Loser destroyed; <strong>winner discards its
     weakest card</strong> (single-card armies spared) — garrisons too. Assault winner
     becomes the garrison.</p>
+    <p><strong>Reserves:</strong> a human defender may commit <em>one card of their suit</em>
+    from hand before any battle resolves — its strength joins the defense, then the card is
+    discarded (win or lose).</p>
+    <p><strong>Siege glory:</strong> if a repelled assault still costs the garrison a casualty,
+    the <em>attacker</em> takes the +1 (battering the walls); only a clean repel pays the defender.</p>
 
     <h2>Automated army turn — flip 2, resolve in order</h2>
     <table>
@@ -76,10 +85,14 @@
     <table>
       <tr><th>Capture Kartenburg</th><td>+5</td>
           <th>Hold it at your turn's start</th><td>+1</td>
-          <th>Win a raid / repel an assault</th><td>+1</td></tr>
+          <th>Hold it when the season turns</th><td>+2</td></tr>
+      <tr><th>Win a raid / defense</th><td>+1</td>
+          <th>Clean-repel an assault</th><td>+1</td>
+          <th>Batter the walls (repelled but garrison bleeds)</th><td>+1 to attacker</td></tr>
     </table>
-    <p><strong>Seasons:</strong> deck empty → reshuffle discards, play season 2. Deck empty
-    again → war ends, <strong>most glory wins</strong>.</p>
+    <p><strong>Seasons:</strong> when the deck empties, finish the round (every seat gets
+    equal turns) — the holder of Kartenburg takes +2, discards reshuffle, season 2 begins.
+    At the end of season 2 the war ends: <strong>most glory wins</strong>.</p>
   </main>
 
   <footer>Kartenburg — a browser war game playable with a regular deck, pen and paper.</footer>

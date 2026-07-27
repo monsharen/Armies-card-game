@@ -128,7 +128,9 @@ const HOWTO_PAGES = [
       pcardHTML({ suit: 'diamonds', rank: '6', id: '6-diamonds' }, 'mini') + '</div></div>' +
       '<p>Kartenburg sits at the center, held by mercenaries. Four armies march on it down four roads.</p>' +
       '<p><b>Capture the city: +5 glory.</b> Hold it at the start of your turn: <b>+1 tribute</b>. ' +
-      'Win raids and defenses: +1. Most glory after two seasons of the deck wins the war.</p>',
+      'Hold it when a season turns: <b>+2</b>. Win raids and defenses: +1. ' +
+      'Most glory after two seasons of the deck wins the war.</p>' +
+      '<p>Later seats start stronger: extra cards (players) or banked supply (automated armies).</p>',
   },
   {
     title: 'Your Cards',
@@ -141,7 +143,8 @@ const HOWTO_PAGES = [
       'The King makes marches cost 1 less.</p>' +
       '<div class="ht-row"><div class="ht-card">' + pcardHTML({ suit: 'clubs', rank: '8', id: '8-clubs' }) +
       '<span>Supply</span></div><p class="ht-side">Cards of <b>other suits</b> are supply — ' +
-      'each march costs 1 supply per card in the marching stack. Heavy armies are slow.</p></div>',
+      'each march costs 1 supply per card in the marching stack. Heavy armies are slow. ' +
+      'Too much supply? <b>Forage</b>: trade 2 supply for a fresh card.</p></div>',
   },
   {
     title: 'Your Turn',
@@ -151,7 +154,9 @@ const HOWTO_PAGES = [
       'stacks of up to <b>3 cards</b>, strength is their sum. Once an army marches out, its roster is fixed.</div>' +
       '<div><b>🥾 March</b><br>Advance one space, paying supply. March onto your own army to <b>merge</b>; ' +
       'march from the gate to <b>assault Kartenburg</b>.</div>' +
-      '<div><b>🗡️ Raid</b><br>Your Jack strikes the <b>weakest card</b> of any enemy army on a road, then withdraws.</div>' +
+      '<div><b>🗡️ Raid</b><br>Your Jack strikes the <b>weakest card</b> of any enemy army on a road — ' +
+      'or infiltrates an enemy camp to strike its <b>Banner or General</b> — then withdraws.</div>' +
+      '<div><b>🍂 Forage</b><br>Discard 2 supply to draw 1 card.</div>' +
       '</div>',
   },
   {
@@ -165,8 +170,11 @@ const HOWTO_PAGES = [
       '<p>One comparison: <b>stack total vs stack total</b> (+2 with your Queen). ' +
       '<b>The defender wins ties.</b> The loser is destroyed — and the <b>winner loses its ' +
       'weakest card</b> as casualties.</p>' +
-      '<p>Garrisons erode the same way and <b>cannot be reinforced</b>: waves of cheap attackers ' +
-      'bring down any fortress. Every crown falls, eventually.</p>',
+      '<p><b>Reserves:</b> when you are attacked, you may commit one card of your suit from hand — ' +
+      'its strength joins the defense, then the card is lost.</p>' +
+      '<p>Garrisons erode and <b>cannot be reinforced</b>: waves of cheap attackers bring down any ' +
+      'fortress — a repelled assault that still bloodies the garrison earns the <b>attacker</b> +1 ' +
+      'siege glory. Every crown falls, eventually.</p>',
   },
   {
     title: 'Rival Armies',
@@ -479,7 +487,7 @@ function drawDest(suit) {
 }
 
 function maybeScheduleNpc() {
-  if (!game || game.over || currentArmy(game).isHuman || ui.npcTimer) return;
+  if (!game || game.over || game.pendingBattle || currentArmy(game).isHuman || ui.npcTimer) return;
   const delay = Math.max(950, fxUntil - Date.now() + 350);
   ui.npcTimer = setTimeout(() => {
     ui.npcTimer = null;
@@ -491,8 +499,18 @@ function maybeScheduleNpc() {
 /* ── Input ────────────────────────────────────────────────────────────── */
 
 function myTurn() {
-  return game && !game.over && currentArmy(game).isHuman &&
+  return game && !game.over && !game.pendingBattle && currentArmy(game).isHuman &&
     (humanSuits().length <= 1 || ui.revealedSuit === currentArmy(game).suit);
+}
+
+/* Who the device should be in front of: the pending battle's defender wins
+ * over the current player (a defense interrupts anyone's turn). */
+function handoffTarget() {
+  if (game.pendingBattle && game.armies[game.pendingBattle.defender].isHuman) {
+    return game.pendingBattle.defender;
+  }
+  const cur = currentArmy(game);
+  return cur.isHuman ? cur.suit : null;
 }
 
 function mustDiscard() {
@@ -507,6 +525,18 @@ function raidTargets() {
     game.armies[enemy].road.forEach((stack, idx) => {
       if (stack) targets.push({ suit: enemy, idx, stack });
     });
+  }
+  return targets;
+}
+
+/* Enemy camp posts (Banners and Generals) the Jack can strike. */
+function postTargets() {
+  const suit = currentArmy(game).suit;
+  const targets = [];
+  for (const enemy of SUITS) {
+    if (enemy === suit) continue;
+    if (game.armies[enemy].posts.queen) targets.push({ suit: enemy, post: 'queen' });
+    if (game.armies[enemy].posts.king) targets.push({ suit: enemy, post: 'king' });
   }
   return targets;
 }
@@ -530,7 +560,7 @@ function onHandClick(i) {
     afterEngineCall();
     return;
   }
-  if (card.rank === 'J' && raidTargets().length) {
+  if (card.rank === 'J' && (raidTargets().length || postTargets().length)) {
     ui.modal = { type: 'jack', handIdx: i };
   } else {
     ui.modal = { type: 'deploy', handIdx: i };
@@ -557,6 +587,21 @@ function modalRaid(suit, idx) {
   const res = raid(game, ui.modal.handIdx, suit, idx);
   ui.modal = null;
   if (!res.ok) toast(res.msg);
+  afterEngineCall();
+}
+
+function modalRaidPost(suit, post) {
+  if (!myTurn() || !ui.modal || ui.modal.type !== 'raid') return;
+  const res = raidPost(game, ui.modal.handIdx, suit, post);
+  ui.modal = null;
+  if (!res.ok) toast(res.msg);
+  afterEngineCall();
+}
+
+function onForage() {
+  if (!myTurn() || mustDiscard() || ui.modal) return;
+  const res = forage(game);
+  if (!res.ok) { toast(res.msg); return; }
   afterEngineCall();
 }
 
@@ -606,6 +651,7 @@ function pickMarchArmy(zone, idx) {
 
 function cancelModal() {
   if (mustDiscard()) return; // discarding cannot be cancelled
+  if (game && game.pendingBattle) return; // neither can a defense
   ui.modal = null;
   render();
 }
@@ -624,7 +670,7 @@ function onEndTurn() {
 }
 
 function revealTurn() {
-  ui.revealedSuit = currentArmy(game).suit;
+  ui.revealedSuit = handoffTarget() || currentArmy(game).suit;
   render();
 }
 
@@ -634,7 +680,7 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (e.key !== 'Escape' || !game) return;
-  if (mustDiscard()) return;
+  if (mustDiscard() || game.pendingBattle) return;
   if (ui.modal) { cancelModal(); return; }
   togglePause();
 });
@@ -981,7 +1027,9 @@ function renderSidebar() {
   for (const suit of SUITS) ui.glorySeen[suit] = game.armies[suit].glory;
   document.getElementById('hudScore').innerHTML = chips;
   document.getElementById('hudInfo').textContent =
-    'S' + game.season + '/' + SEASONS + ' · deck ' + game.deck.length;
+    'S' + game.season + '/' + SEASONS + ' · deck ' + game.deck.length +
+    (game.deck.length === 0 ? ' — ' + (game.season >= SEASONS ? 'the war' : 'the season') + ' ends this round!'
+      : game.deck.length <= 6 ? ' ⌛' : '');
 
   // Contextual prompt line (lives in the bottom bar)
   const panel = document.getElementById('turnPanel');
@@ -997,19 +1045,23 @@ function renderSidebar() {
     panel.innerHTML = '<p class="prompt">Waiting for ' + playerLabel(cur.suit) + '…</p>';
     return;
   }
+  const canForage = supplyIndices(cur).length >= 2 && game.deck.length > 0;
   panel.innerHTML = '<p class="prompt"><strong>' + game.actionsLeft + '</strong> action' +
     (game.actionsLeft === 1 ? '' : 's') + ' left — tap a card to deploy, an army to march.</p>' +
+    (canForage ? '<button class="btn" onclick="onForage()" title="Discard 2 supply to draw 1 card">🍂 Forage</button>' : '') +
     '<button class="btn" onclick="onEndTurn()">Hold position</button>';
 }
 
 function renderHandoff() {
   const overlay = document.getElementById('handoff');
-  const cur = currentArmy(game);
-  const need = !game.over && cur.isHuman && humanSuits().length > 1 && ui.revealedSuit !== cur.suit;
+  const target = handoffTarget();
+  const need = !game.over && !!target && humanSuits().length > 1 && ui.revealedSuit !== target;
   overlay.classList.toggle('hidden', !need);
   if (need) {
+    const defending = !!game.pendingBattle;
     document.getElementById('handoffText').innerHTML =
-      'Pass the device to <strong>' + playerLabel(cur.suit) + '</strong><br>' + armyName(cur.suit);
+      (defending ? '🛡️ <strong>Defense!</strong> ' : '') +
+      'Pass the device to <strong>' + playerLabel(target) + '</strong><br>' + armyName(target);
   }
 }
 
@@ -1036,13 +1088,73 @@ function battleForecast(attStr, defStr) {
     : '<span class="bad">repelled (' + attStr + ' vs ' + defStr + ' — defender wins ties)</span>';
 }
 
+/* Attack and defense strengths of the pending battle (before any reserve). */
+function pendingStrengths() {
+  const pb = game.pendingBattle;
+  if (pb.kind === 'assault') {
+    return {
+      att: effStrength(game, pb.attacker, pb.stack.cards),
+      def: effStrength(game, game.garrison.owner, game.garrison.cards),
+      what: 'assault Kartenburg with ' + stackLabel(pb.stack.cards),
+      where: 'Your garrison',
+    };
+  }
+  if (pb.kind === 'raid') {
+    const stack = game.armies[pb.targetSuit].road[pb.roadIdx];
+    const weak = stack.cards[weakestOf(stack.cards)];
+    return {
+      att: strength(pb.jack) + qBonus(game.armies[pb.attacker]),
+      def: strength(weak) + qBonus(game.armies[pb.targetSuit]),
+      what: 'raid your army on road space ' + (pb.roadIdx + 1),
+      where: 'Your ' + cardLabel(weak),
+    };
+  }
+  const st = postRaidStrengths(game, pb.attacker, pb.targetSuit, pb.post);
+  return {
+    att: st.att, def: st.def,
+    what: 'strike your camp — they hunt your ' + (pb.post === 'queen' ? 'Banner (Q)' : 'General (K)'),
+    where: 'Your ' + (pb.post === 'queen' ? 'Banner' : 'General'),
+  };
+}
+
+function modalDefend(reserveIdx) {
+  if (!game || !game.pendingBattle) return;
+  const res = resolvePendingBattle(game, reserveIdx);
+  if (!res.ok) { toast(res.msg); return; }
+  afterEngineCall();
+}
+
 function renderActionModal() {
   const modal = document.getElementById('actionModal');
   const cur = currentArmy(game);
-  const handoffNeeded = !game.over && cur.isHuman && humanSuits().length > 1 && ui.revealedSuit !== cur.suit;
+  const target = game.over ? null : handoffTarget();
+  const handoffNeeded = !!target && humanSuits().length > 1 && ui.revealedSuit !== target;
   let title = '', body = '', cancelable = true, show = false;
 
-  if (!handoffNeeded && mustDiscard()) {
+  if (!handoffNeeded && game.pendingBattle && !game.over &&
+      game.armies[game.pendingBattle.defender].isHuman) {
+    const pb = game.pendingBattle;
+    const s = pendingStrengths();
+    show = true;
+    cancelable = false;
+    title = '🛡️ To arms, ' + armyName(pb.defender) + '!';
+    body = '<p><strong>' + armyName(pb.attacker) + '</strong> ' + s.what +
+      ' at strength <strong>' + s.att + '</strong>. ' + s.where + ' defends at <strong>' + s.def +
+      '</strong> — you may commit one card of your suit from hand as a reserve. ' +
+      'Its strength joins the defense, then the card is lost.</p>' +
+      amOption('modalDefend(null)', '✋ Hold your reserves back',
+        s.att > s.def ? '<span class="bad">The attack succeeds (' + s.att + ' vs ' + s.def + ')</span>'
+          : '<span class="good">You hold anyway (' + s.att + ' vs ' + s.def + ')</span>');
+    for (const i of reserveOptions(game, pb.defender)) {
+      const card = game.armies[pb.defender].hand[i];
+      const def2 = s.def + strength(card);
+      body += amOption('modalDefend(' + i + ')',
+        '🛡️ Commit ' + cardLabel(card) + ' (+' + strength(card) + ')',
+        (s.att > def2 ? '<span class="bad">Still falls (' + s.att + ' vs ' + def2 + ')</span>'
+          : '<span class="good">You hold (' + s.att + ' vs ' + def2 + ')</span>') +
+        ' — the reserve is lost either way.');
+    }
+  } else if (!handoffNeeded && mustDiscard()) {
     show = true;
     cancelable = false;
     title = '🃏 Hand over the limit';
@@ -1074,13 +1186,22 @@ function renderActionModal() {
     } else if (m.type === 'raid') {
       const attStr = 11 + qBonus(cur);
       title = '🗡️ Choose a raid target';
-      body = '<p>Your raiders strike at ' + attStr + '. They hit the army\'s <strong>weakest card</strong>:</p>';
+      body = '<p>Your raiders strike at ' + attStr + '. On a road they hit the army\'s ' +
+        '<strong>weakest card</strong>; in a camp they can strike at a <strong>Banner or General</strong> ' +
+        '(+2 for the infiltration). Defenders may commit a reserve.</p>';
       for (const t of raidTargets()) {
         const weak = t.stack.cards[weakestOf(t.stack.cards)];
         const defStr = strength(weak) + qBonus(game.armies[t.suit]);
         body += amOption('modalRaid(\'' + t.suit + '\',' + t.idx + ')',
           armyName(t.suit) + ' on road space ' + (t.idx + 1) + ': ' + stackLabel(t.stack.cards),
           'Targets ' + cardLabel(weak) + ' → ' + battleForecast(attStr, defStr));
+      }
+      for (const t of postTargets()) {
+        const st = postRaidStrengths(game, cur.suit, t.suit, t.post);
+        body += amOption('modalRaidPost(\'' + t.suit + '\',\'' + t.post + '\')',
+          armyName(t.suit) + '\'s ' + (t.post === 'queen' ? 'Banner (Q)' : 'General (K)') + ' in camp',
+          (t.post === 'queen' ? 'Fell it and their armies lose their +2' : 'Slay him and their marches cost full price') +
+          ' → ' + battleForecast(st.att, st.def));
       }
     } else if (m.type === 'pickArmy') {
       const nSupply = supplyIndices(cur).length;
@@ -1219,6 +1340,7 @@ const FX_DUR = {
   draw: 420, flip: 950, deploy: 480, march: 520, assault: 700, capture: 700,
   raid: 750, tribute: 420, supply: 380, toss: 320, season: 950,
   deal: 780, garrison: 1550,
+  defense: 650, reserve: 620, postraid: 780, seasonHold: 900,
 };
 
 function playFx(events) {
@@ -1530,6 +1652,41 @@ function runFx(ev) {
       setTimeout(() => el.remove(), 950);
       showBanner('SEASON ' + ev.season + ' - THE FALLEN RETURN', { tint: '#4c7a3d', icon: '🌱', big: true });
       sfx.shuffleSound();
+      break;
+    }
+    case 'seasonHold': {
+      showBanner('THE CROWN ENDURES +' + GLORY.season, suitOpts(ev.suit, { icon: '👑', big: true }));
+      const r = rectOf(cellSel('citadel'));
+      sparks(r, GOLD_SPARKS, 18);
+      floatText('+' + GLORY.season + ' 🏅', r, 'gold big');
+      sfx.fanfare();
+      break;
+    }
+    case 'defense': {
+      showBanner('TO ARMS!', suitOpts(ev.suit, { icon: '🛡️' }));
+      sfx.thud();
+      break;
+    }
+    case 'reserve': {
+      showBanner('A RESERVE JOINS THE LINE', suitOpts(ev.suit, { icon: '🛡️' }));
+      flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, discR, 380);
+      sfx.place();
+      break;
+    }
+    case 'postraid': {
+      camPunch('camp-' + ev.targetSuit);
+      showBanner(ev.won ? (ev.post === 'queen' ? 'THE BANNER FALLS!' : 'THE GENERAL FALLS!') : 'THE CAMP HOLDS',
+        { tint: ev.won ? '#d06050' : SUIT_META[ev.targetSuit].tint, variant: 'slash' });
+      const campSel = cellSel('camp', ev.targetSuit);
+      const cr = rectOf(campSel);
+      flyHTML(cardBackHTML(), deckR, cr, 420, 'spin');
+      setTimeout(() => {
+        flashAt(cr);
+        shake(ev.won ? 'md' : 'sm');
+        sparks(cr, BLOOD_SPARKS, ev.won ? 18 : 10);
+        floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', cr, ev.won ? 'red big' : 'gold');
+        sfx.thud();
+      }, 430);
       break;
     }
   }

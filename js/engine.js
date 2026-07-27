@@ -20,7 +20,11 @@ const HAND_LIMIT = 7;
 const ACTIONS_PER_TURN = 2;
 const NPC_FLIPS = 2;
 const SEASONS = 2;
-const GLORY = { battle: 1, capture: 5, tribute: 1 };
+const GLORY = { battle: 1, capture: 5, tribute: 1, season: 2, siege: 1 };
+// Seat compensation: later seats start with extra cards (humans, capped so
+// the opening hand stays within the hand limit) or banked supply (automated
+// armies). Order is hearts, spades, diamonds, clubs.
+const SEAT_BONUS = [0, 2, 3, 4];
 
 // Which suits are human-controlled for a given player count. Chosen so that
 // with 2 humans, turn order alternates human / automated army.
@@ -58,6 +62,7 @@ function createGame(numHumans) {
     actionsLeft: 0,
     flipsLeft: 0,
     pendingDiscard: 0,
+    pendingBattle: null,
     over: false,
     winners: null,
     log: [],
@@ -76,8 +81,12 @@ function createGame(numHumans) {
     };
   }
   for (const suit of humans) {
-    for (let i = 0; i < 4; i++) state.armies[suit].hand.push(state.deck.pop());
-    pushEvent(state, { type: 'deal', suit, count: 4 });
+    const n = 4 + Math.min(3, SEAT_BONUS[SUITS.indexOf(suit)]);
+    for (let i = 0; i < n; i++) state.armies[suit].hand.push(state.deck.pop());
+    pushEvent(state, { type: 'deal', suit, count: n });
+  }
+  for (const suit of SUITS) {
+    if (!state.armies[suit].isHuman) state.armies[suit].supply = SEAT_BONUS[SUITS.indexOf(suit)];
   }
   const g = [state.deck.pop(), state.deck.pop()];
   state.garrison = { cards: g, owner: null };
@@ -139,13 +148,17 @@ function supplyIndices(army) {
 /* ── Deck, seasons, game end ──────────────────────────────────────────── */
 
 function drawCard(state) {
-  if (state.over) return null;
-  if (!state.deck.length) endSeason(state);
   if (state.over || !state.deck.length) return null;
   return state.deck.pop();
 }
 
 function endSeason(state) {
+  if (state.garrison.owner) {
+    state.armies[state.garrison.owner].glory += GLORY.season;
+    addLog(state, 'system', '👑 The season turns — ' + armyName(state.garrison.owner) +
+      ' holds Kartenburg: +' + GLORY.season + ' glory.');
+    pushEvent(state, { type: 'seasonHold', suit: state.garrison.owner });
+  }
   if (state.season >= SEASONS) {
     finishGame(state);
     return;
@@ -190,7 +203,8 @@ function beginTurn(state) {
     state.pendingDiscard = Math.max(0, army.hand.length - HAND_LIMIT);
     if (drawn) pushEvent(state, { type: 'draw', suit: army.suit, count: drawn });
     if (state.over) return;
-    addLog(state, 'turn', '— ' + armyName(army.suit) + ' takes the field (draws ' + drawn + ').' +
+    addLog(state, 'turn', '— ' + armyName(army.suit) + ' takes the field (draws ' + drawn +
+      (drawn < 2 ? ' — the deck is spent, the season ends with this round' : '') + ').' +
       (state.pendingDiscard ? ' Hand over ' + HAND_LIMIT + ' — must discard ' + state.pendingDiscard + '.' : ''));
     state.actionsLeft = ACTIONS_PER_TURN;
   } else {
@@ -202,6 +216,12 @@ function beginTurn(state) {
 function nextTurn(state) {
   if (state.over) return;
   state.orderIdx = (state.orderIdx + 1) % SUITS.length;
+  // The season only turns once the round completes, so every seat gets the
+  // same number of turns before the reshuffle and before the war ends.
+  if (state.orderIdx === 0 && state.deck.length === 0) {
+    endSeason(state);
+    if (state.over) return;
+  }
   beginTurn(state);
 }
 
@@ -213,7 +233,7 @@ function spendAction(state) {
 
 function passTurn(state) {
   const army = currentArmy(state);
-  if (!army.isHuman || state.over || state.pendingDiscard > 0) return;
+  if (!army.isHuman || state.over || state.pendingDiscard > 0 || state.pendingBattle) return;
   addLog(state, 'player', armyName(army.suit) + ' holds position.');
   state.actionsLeft = 0;
   nextTurn(state);
@@ -230,10 +250,10 @@ function takeCasualties(state, cards) {
   return fallen;
 }
 
-function resolveAssault(state, suit, stack) {
+function resolveAssault(state, suit, stack, defBonus) {
   const g = state.garrison;
   const attStr = effStrength(state, suit, stack.cards);
-  const defStr = effStrength(state, g.owner, g.cards);
+  const defStr = effStrength(state, g.owner, g.cards) + (defBonus || 0);
   const defName = g.owner ? armyName(g.owner) : 'the mercenaries';
   pushEvent(state, { type: 'assault', suit, won: attStr > defStr, attStr, defStr });
   if (attStr > defStr) {
@@ -248,23 +268,33 @@ function resolveAssault(state, suit, stack) {
   } else {
     for (const c of stack.cards) state.discard.push(c);
     const fallen = takeCasualties(state, g.cards);
-    if (g.owner) state.armies[g.owner].glory += GLORY.battle;
-    addLog(state, 'battle', '🛡️ Assault repelled! ' + armyName(suit) + '\'s army (' + attStr +
-      ') breaks against ' + defName + ' (' + defStr + ').' +
-      (g.owner ? ' +' + GLORY.battle + ' glory to ' + armyName(g.owner) + '.' : '') +
-      (fallen ? ' Garrison casualties: ' + cardLabel(fallen) + '.' : ''));
+    if (fallen) {
+      // Battering the walls: a repelled assault that still bloodied the
+      // garrison rewards the attacker, not the defender — waves are an
+      // investment, not a donation to the leader.
+      state.armies[suit].glory += GLORY.siege;
+      addLog(state, 'battle', '🛡️ Assault repelled — but the walls are battered! ' +
+        armyName(suit) + '\'s army (' + attStr + ') breaks against ' + defName + ' (' + defStr +
+        '); garrison casualties: ' + cardLabel(fallen) + '. +' + GLORY.siege + ' siege glory to ' +
+        armyName(suit) + '.');
+    } else {
+      if (g.owner) state.armies[g.owner].glory += GLORY.battle;
+      addLog(state, 'battle', '🛡️ Assault repelled clean! ' + armyName(suit) + '\'s army (' + attStr +
+        ') breaks against ' + defName + ' (' + defStr + ').' +
+        (g.owner ? ' +' + GLORY.battle + ' glory to ' + armyName(g.owner) + '.' : ''));
+    }
   }
 }
 
 /* A raid strikes an enemy army's weakest card — Jacks whittle stacks down. */
-function resolveRaid(state, attackerSuit, jack, targetSuit, roadIdx) {
+function resolveRaid(state, attackerSuit, jack, targetSuit, roadIdx, defBonus) {
   const att = state.armies[attackerSuit];
   const def = state.armies[targetSuit];
   const stack = def.road[roadIdx];
   const wIdx = weakestIdx(stack.cards);
   const target = stack.cards[wIdx];
   const attStr = strength(jack) + qBonus(att);
-  const defStr = strength(target) + qBonus(def);
+  const defStr = strength(target) + qBonus(def) + (defBonus || 0);
   pushEvent(state, { type: 'raid', attacker: attackerSuit, targetSuit, roadIdx, won: attStr > defStr, jack });
   if (attStr > defStr) {
     stack.cards.splice(wIdx, 1);
@@ -317,7 +347,10 @@ function stackAt(army, from) {
   return from.zone === 'camp' ? army.camp[from.idx] : army.road[from.idx];
 }
 
-function executePlan(state, suit, plan) {
+/* Runs a march plan. Returns true when the assault is left pending on a
+ * human garrison-holder's reserve decision (`after` says how to continue:
+ * 'human' spends the attacker's action, 'npc' consumes the flip). */
+function executePlan(state, suit, plan, after) {
   const army = state.armies[suit];
   const stack = stackAt(army, plan.from);
   pushEvent(state, { type: 'march', suit, from: plan.from, dest: plan.dest, kind: plan.kind,
@@ -327,6 +360,13 @@ function executePlan(state, suit, plan) {
   if (plan.kind === 'assault') {
     addLog(state, 'player', armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
       ' marches on Kartenburg!');
+    const owner = state.garrison.owner;
+    if (owner && owner !== suit && reserveOptions(state, owner).length) {
+      state.pendingBattle = { kind: 'assault', attacker: suit, defender: owner, stack, after };
+      addLog(state, 'battle', '🛡️ ' + armyName(owner) + ' may commit a reserve to the walls!');
+      pushEvent(state, { type: 'defense', suit: owner });
+      return true;
+    }
     resolveAssault(state, suit, stack);
   } else if (plan.kind === 'merge') {
     const ahead = army.road[plan.dest.idx];
@@ -343,10 +383,22 @@ function executePlan(state, suit, plan) {
 
 /* ── Human actions (act on the current army; validated) ───────────────── */
 
+/* Hand indices of a defender's own-suit cards — cards they may commit as a
+ * reserve when attacked. Only human seats hold hands, so automated armies
+ * never get (or stall on) the choice. */
+function reserveOptions(state, suit) {
+  const a = state.armies[suit];
+  if (!a || !a.isHuman) return [];
+  const idxs = [];
+  a.hand.forEach((c, i) => { if (c.suit === suit) idxs.push(i); });
+  return idxs;
+}
+
 function humanGuard(state) {
   const army = currentArmy(state);
   if (state.over) return { ok: false, msg: 'The war is over.' };
   if (!army.isHuman) return { ok: false, msg: 'Not a player turn.' };
+  if (state.pendingBattle) return { ok: false, msg: 'A battle awaits the defender\'s answer.' };
   if (state.pendingDiscard > 0) return { ok: false, msg: 'Discard down to ' + HAND_LIMIT + ' cards first.' };
   if (state.actionsLeft <= 0) return { ok: false, msg: 'No actions left.' };
   return { ok: true, army };
@@ -428,8 +480,8 @@ function march(state, from) {
   }
   addLog(state, 'player', armyName(army.suit) + ' spends ' + plan.cost + ' supply.');
   pushEvent(state, { type: 'supply', suit: army.suit, count: plan.cost });
-  executePlan(state, army.suit, plan);
-  spendAction(state);
+  const pending = executePlan(state, army.suit, plan, 'human');
+  if (!pending) spendAction(state);
   return { ok: true };
 }
 
@@ -446,8 +498,127 @@ function raid(state, handIdx, targetSuit, roadIdx) {
     return { ok: false, msg: 'Pick an enemy army on a road to raid.' };
   }
   army.hand.splice(handIdx, 1);
+  if (reserveOptions(state, targetSuit).length) {
+    state.pendingBattle = { kind: 'raid', attacker: army.suit, defender: targetSuit, jack: card, targetSuit, roadIdx, after: 'human' };
+    addLog(state, 'battle', '🛡️ ' + armyName(targetSuit) + ' may commit a reserve against the raid!');
+    pushEvent(state, { type: 'defense', suit: targetSuit });
+    return { ok: true };
+  }
   resolveRaid(state, army.suit, card, targetSuit, roadIdx);
   spendAction(state);
+  return { ok: true };
+}
+
+/* The Jack can strike an enemy camp post (Queen or King). The post defends
+ * at its court value; the infiltrating Jack strikes at 11 +2 (+ Queen). */
+function postRaidStrengths(state, attackerSuit, targetSuit, post) {
+  const postCard = state.armies[targetSuit].posts[post];
+  return {
+    att: 11 + qBonus(state.armies[attackerSuit]) + 2,
+    def: postCard ? strength(postCard) : 0,
+  };
+}
+
+function resolvePostRaid(state, attackerSuit, jack, targetSuit, post, defBonus) {
+  const def = state.armies[targetSuit];
+  const postCard = def.posts[post];
+  const str = postRaidStrengths(state, attackerSuit, targetSuit, post);
+  const defStr = str.def + (defBonus || 0);
+  const won = str.att > defStr;
+  pushEvent(state, { type: 'postraid', attacker: attackerSuit, targetSuit, post, won });
+  if (won) {
+    def.posts[post] = null;
+    state.discard.push(postCard);
+    state.armies[attackerSuit].glory += GLORY.battle;
+    addLog(state, 'battle', '🗡️ ' + armyName(attackerSuit) + '\'s raiders (' + str.att +
+      ') infiltrate the camp — ' + armyName(targetSuit) + '\'s ' +
+      (post === 'queen' ? 'Banner falls' : 'General is slain') + ' (' + defStr + ')! +' +
+      GLORY.battle + ' glory.');
+  } else {
+    def.glory += GLORY.battle;
+    addLog(state, 'battle', '🛡️ ' + armyName(targetSuit) + '\'s ' +
+      (post === 'queen' ? 'Banner guard' : 'General') + ' (' + defStr + ') cuts down ' +
+      armyName(attackerSuit) + '\'s raiders (' + str.att + '). +' + GLORY.battle + ' glory.');
+  }
+  state.discard.push(jack);
+}
+
+function raidPost(state, handIdx, targetSuit, post) {
+  const g = humanGuard(state);
+  if (!g.ok) return g;
+  const army = g.army;
+  const card = army.hand[handIdx];
+  if (!card || card.suit !== army.suit || card.rank !== 'J') {
+    return { ok: false, msg: 'Raiding requires the Jack of your own suit.' };
+  }
+  const defender = state.armies[targetSuit];
+  if (!defender || targetSuit === army.suit || !defender.posts[post]) {
+    return { ok: false, msg: 'No such post to strike.' };
+  }
+  army.hand.splice(handIdx, 1);
+  if (reserveOptions(state, targetSuit).length) {
+    state.pendingBattle = { kind: 'post', attacker: army.suit, defender: targetSuit, jack: card, targetSuit, post, after: 'human' };
+    addLog(state, 'battle', '🛡️ ' + armyName(targetSuit) + ' may commit a reserve to guard the camp!');
+    pushEvent(state, { type: 'defense', suit: targetSuit });
+    return { ok: true };
+  }
+  resolvePostRaid(state, army.suit, card, targetSuit, post, 0);
+  spendAction(state);
+  return { ok: true };
+}
+
+/* Forage: burn 2 supply for a fresh card — a sink for supply-flooded hands. */
+function forage(state) {
+  const g = humanGuard(state);
+  if (!g.ok) return g;
+  const army = g.army;
+  const supplies = supplyIndices(army);
+  if (supplies.length < 2) return { ok: false, msg: 'Foraging costs 2 supply.' };
+  for (const i of [supplies[1], supplies[0]]) {
+    state.discard.push(army.hand.splice(i, 1)[0]);
+  }
+  pushEvent(state, { type: 'supply', suit: army.suit, count: 2 });
+  const card = drawCard(state);
+  if (card) {
+    army.hand.push(card);
+    pushEvent(state, { type: 'draw', suit: army.suit, count: 1 });
+  }
+  addLog(state, 'player', armyName(army.suit) + ' forages: 2 supply traded for ' +
+    (card ? 'a fresh card' : 'nothing — the deck is spent') + '.');
+  spendAction(state);
+  return { ok: true };
+}
+
+/* Defender answers the pending battle: a hand index of their suit, or null. */
+function resolvePendingBattle(state, reserveIdx) {
+  const pb = state.pendingBattle;
+  if (!pb || state.over) return { ok: false, msg: 'No battle pending.' };
+  state.pendingBattle = null;
+  let bonus = 0;
+  if (reserveIdx !== null && reserveIdx !== undefined) {
+    const d = state.armies[pb.defender];
+    const card = d.hand[reserveIdx];
+    if (card && card.suit === pb.defender) {
+      d.hand.splice(reserveIdx, 1);
+      state.discard.push(card);
+      bonus = strength(card);
+      addLog(state, 'battle', '🛡️ ' + armyName(pb.defender) + ' commits a reserve: ' +
+        cardLabel(card) + ' (+' + bonus + ' to the defense, then lost).');
+      pushEvent(state, { type: 'reserve', suit: pb.defender, card });
+    }
+  } else {
+    addLog(state, 'battle', armyName(pb.defender) + ' holds their reserves back.');
+  }
+  if (pb.kind === 'assault') resolveAssault(state, pb.attacker, pb.stack, bonus);
+  else if (pb.kind === 'raid') resolveRaid(state, pb.attacker, pb.jack, pb.targetSuit, pb.roadIdx, bonus);
+  else resolvePostRaid(state, pb.attacker, pb.jack, pb.targetSuit, pb.post, bonus);
+  if (state.over) return { ok: true };
+  if (pb.after === 'npc') {
+    state.flipsLeft--;
+    if (state.flipsLeft <= 0) nextTurn(state);
+  } else {
+    spendAction(state);
+  }
   return { ok: true };
 }
 
@@ -496,7 +667,7 @@ function npcReinforce(state, army, card) {
 }
 
 function npcFlip(state) {
-  if (state.over) return;
+  if (state.over || state.pendingBattle) return;
   const army = currentArmy(state);
   if (army.isHuman || state.flipsLeft <= 0) return;
   const card = drawCard(state);
@@ -519,6 +690,12 @@ function npcFlip(state) {
       if (target) {
         pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'raid' });
         addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) + ' — raiders ride out!');
+        if (reserveOptions(state, target.suit).length) {
+          state.pendingBattle = { kind: 'raid', attacker: army.suit, defender: target.suit, jack: card, targetSuit: target.suit, roadIdx: target.idx, after: 'npc' };
+          addLog(state, 'battle', '🛡️ ' + armyName(target.suit) + ' may commit a reserve against the raid!');
+          pushEvent(state, { type: 'defense', suit: target.suit });
+          return;
+        }
         resolveRaid(state, army.suit, card, target.suit, target.idx);
       } else {
         pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'muster' });
@@ -537,7 +714,7 @@ function npcFlip(state) {
       army.supply -= plan.cost;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
         ' — supplies complete (' + plan.cost + ' spent), the army marches!');
-      executePlan(state, army.suit, plan);
+      if (executePlan(state, army.suit, plan, 'npc')) return;
     } else {
       pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'supply-bank' });
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
@@ -555,5 +732,7 @@ if (typeof module !== 'undefined') {
     createGame, currentArmy, qBonus, stackSum, stackLabel, effStrength, marchCost,
     supplyIndices, computeMarchPlans,
     deployCard, march, raid, passTurn, npcFlip, discardFromHand,
+    raidPost, forage, resolvePendingBattle, reserveOptions, postRaidStrengths,
+    SEAT_BONUS,
   };
 }
