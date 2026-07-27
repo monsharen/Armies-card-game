@@ -84,7 +84,9 @@ function backToSetup() {
 /* ── Scenes: title → menu → game; How to Play overlays either ─────────── */
 
 function enterMenu() {
-  document.getElementById('titleScreen').classList.add('hidden');
+  const title = document.getElementById('titleScreen');
+  if (!title || title.classList.contains('hidden')) return; // idempotent
+  title.classList.add('hidden');
   document.getElementById('setup').classList.remove('hidden');
   sfx.startMusic();
   sfx.draw();
@@ -1617,7 +1619,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.classList.add('pixel-mode');
   const title = document.getElementById('titleScreen');
   if (title) {
+    // Belt and braces for iOS Safari: some versions only deliver taps
+    // reliably via touchend/pointerup (plus the inline onclick attribute).
     title.addEventListener('click', enterMenu);
+    title.addEventListener('pointerup', enterMenu);
+    title.addEventListener('touchend', e => { e.preventDefault(); enterMenu(); }, { passive: false });
     document.addEventListener('keydown', e => {
       if (!title.classList.contains('hidden') && e.key !== 'F12') enterMenu();
     }, { once: true });

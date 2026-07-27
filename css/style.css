@@ -968,6 +968,8 @@ body.app main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
 #titleScreen {
   height: 100vh;
   height: 100dvh;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -983,7 +985,16 @@ body.app main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
 #titleScreen .suits { font-size: 2rem; letter-spacing: 0.4em; margin: 0; }
 #titleScreen .suits .red { color: #e05555; }
 #titleScreen .tagline { color: var(--muted); font-style: italic; margin: 0; }
-.press-start { margin: 2.2rem 0 0; animation: pressBlink 1.4s steps(2) infinite; }
+.press-start {
+  margin: 2.2rem 0 0;
+  animation: pressBlink 1.4s steps(2) infinite;
+  background: none;
+  border: none;
+  padding: 0.8rem 1.6rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
 @keyframes pressBlink { 50% { opacity: 0.15; } }
 .title-foot { color: #555c69; font-size: 0.8rem; position: absolute; bottom: 1.2rem; }
 
