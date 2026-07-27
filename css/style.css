@@ -1068,3 +1068,85 @@ body.app main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
 .howto-nav { display: flex; align-items: center; justify-content: center; gap: 0.9rem; }
 .ht-dot { display: inline-block; width: 9px; height: 9px; background: var(--line); margin: 0 3px; }
 .ht-dot.on { background: var(--gold); }
+
+
+/* ── Retro title screen: black, scanlines, stars, drifting cards ── */
+body.on-title { background: #000; }
+body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important; }
+
+#titleScreen {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+}
+#titleScreen::before { /* vignette */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.75) 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+#titleScreen::after { /* rolling CRT scanlines */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 2px, transparent 2px 4px);
+  animation: scanRoll 9s linear infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+@keyframes scanRoll { to { background-position: 0 120px; } }
+
+#titleFx { position: absolute; inset: 0; pointer-events: none; }
+.title-star {
+  position: absolute;
+  background: #cfd6e4;
+  animation: starTwinkle 3s ease-in-out infinite;
+}
+@keyframes starTwinkle {
+  0%, 100% { opacity: 0.12; }
+  50% { opacity: 0.9; }
+}
+.title-card {
+  position: absolute;
+  bottom: -120px;
+  opacity: 0.35;
+  animation: cardDrift 22s linear infinite;
+  filter: brightness(0.75);
+}
+@keyframes cardDrift {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(var(--drift, 0px), calc(-100vh - 240px)) rotate(var(--spin, 0deg)); }
+}
+
+.title-stack { position: relative; z-index: 5; }
+.press-start { position: relative; z-index: 5; }
+/* chromatic aberration + occasional glitch jitter on the wordmark */
+.title-stack h1 .px-word {
+  filter: drop-shadow(-2px 0 rgba(255, 40, 70, 0.55)) drop-shadow(2px 0 rgba(40, 200, 255, 0.55))
+    drop-shadow(0 5px 0 rgba(0, 0, 0, 0.7));
+  animation: titleGlitch 5s steps(1) infinite;
+}
+@keyframes titleGlitch {
+  0%, 91%, 100% { transform: translate(0, 0); opacity: 1; }
+  92% { transform: translate(-3px, 1px); opacity: 0.85; }
+  93.2% { transform: translate(3px, -1px); opacity: 1; }
+  94.4% { transform: translate(-1px, 0); opacity: 0.9; }
+  95.4% { transform: translate(0, 0); opacity: 1; }
+}
+
+/* CRT power-off: collapse to a bright line, then wink out */
+#titleScreen.crt-off {
+  animation: crtOff 0.42s cubic-bezier(0.7, 0, 0.9, 1) forwards;
+}
+@keyframes crtOff {
+  0% { transform: scaleY(1); filter: brightness(1); }
+  55% { transform: scaleY(0.012); filter: brightness(6); }
+  80% { transform: scaleY(0.012) scaleX(0.4); filter: brightness(8); }
+  100% { transform: scaleY(0.012) scaleX(0.001); filter: brightness(10); }
+}
+
+/* menu fades in after the CRT wink */
+#setup { animation: menuIn 0.4s ease-out; }
+@keyframes menuIn { from { opacity: 0; transform: translateY(10px); } }

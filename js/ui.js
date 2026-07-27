@@ -85,11 +85,38 @@ function backToSetup() {
 
 function enterMenu() {
   const title = document.getElementById('titleScreen');
-  if (!title || title.classList.contains('hidden')) return; // idempotent
-  title.classList.add('hidden');
-  document.getElementById('setup').classList.remove('hidden');
-  sfx.startMusic();
-  sfx.draw();
+  if (!title || title.classList.contains('hidden') || title.dataset.entering) return;
+  title.dataset.entering = '1';
+  sfx.coin();
+  title.classList.add('crt-off'); // CRT power-off collapse, then the menu
+  setTimeout(() => {
+    title.classList.add('hidden');
+    document.body.classList.remove('on-title');
+    document.getElementById('setup').classList.remove('hidden');
+    sfx.startMusic();
+    sfx.draw();
+  }, 420);
+}
+
+/* Retro title dressing: twinkling pixel stars and drifting card backs. */
+function buildTitleFx() {
+  const holder = document.getElementById('titleFx');
+  if (!holder) return;
+  let html = '';
+  for (let i = 0; i < 46; i++) {
+    const size = 1 + Math.floor(Math.random() * 3);
+    html += '<span class="title-star" style="left:' + (Math.random() * 100).toFixed(1) +
+      '%;top:' + (Math.random() * 100).toFixed(1) + '%;width:' + size + 'px;height:' + size +
+      'px;animation-delay:' + (Math.random() * 4).toFixed(2) + 's;animation-duration:' +
+      (2.2 + Math.random() * 3).toFixed(2) + 's"></span>';
+  }
+  for (let i = 0; i < 7; i++) {
+    html += '<span class="title-card" style="left:' + (4 + Math.random() * 92).toFixed(1) +
+      '%;animation-delay:' + (-Math.random() * 26).toFixed(2) + 's;animation-duration:' +
+      (17 + Math.random() * 14).toFixed(2) + 's;--drift:' + (Math.random() * 60 - 30).toFixed(0) +
+      'px;--spin:' + (Math.random() * 50 - 25).toFixed(0) + 'deg">' + cardBackHTML() + '</span>';
+  }
+  holder.innerHTML = html;
 }
 
 const HOWTO_PAGES = [
@@ -1619,6 +1646,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.classList.add('pixel-mode');
   const title = document.getElementById('titleScreen');
   if (title) {
+    buildTitleFx();
     // Belt and braces for iOS Safari: some versions only deliver taps
     // reliably via touchend/pointerup (plus the inline onclick attribute).
     title.addEventListener('click', enterMenu);
