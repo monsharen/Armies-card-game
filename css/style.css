@@ -744,3 +744,69 @@ body.pixel-mode .cell.camp { border-width: 3px; }
   60% { transform: scale(1.12) rotate(2deg); opacity: 1; }
   100% { transform: scale(1) rotate(0); }
 }
+
+
+/* ── Pixel titles: bitmap letters, optional slow wave ───────── */
+.px-word { display: inline-flex; align-items: flex-end; line-height: 1; vertical-align: middle; }
+.px-word img.pxl { image-rendering: pixelated; display: block; }
+.px-word .px-fallback { font-weight: bold; color: inherit; }
+.px-word.wave img.pxl, .px-word.wave .px-fallback {
+  animation: letterWave 2.6s ease-in-out infinite;
+  animation-delay: calc(var(--li) * 0.13s);
+}
+@keyframes letterWave {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.hero h1.pixel-title { display: flex; justify-content: center; text-shadow: none; }
+.hero h1.pixel-title .px-word { filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.55)); }
+#setup h2.pixel-title { display: flex; justify-content: center; margin-bottom: 1rem; }
+.modal h2.pixel-title { display: flex; justify-content: center; }
+.prose h1.pixel-title { display: flex; }
+.panel h3 .px-word { transform: translateY(1px); }
+nav .brand .px-word { transform: translateY(2px); }
+
+/* ── Chronicle splashes: the log plays out on screen ────────── */
+#splashFeed {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 43;
+  pointer-events: none;
+  width: min(680px, 92vw);
+}
+.splash {
+  background: rgba(14, 17, 22, 0.92);
+  border: 2px solid var(--line);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
+  padding: 0.45rem 0.9rem;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  color: var(--text);
+  text-align: center;
+  animation: splashIn 0.28s cubic-bezier(0.3, 1.5, 0.6, 1);
+  max-width: 100%;
+}
+.splash.out { animation: splashOut 0.45s ease-in forwards; }
+.splash-battle { border-color: var(--danger); color: #ffb3a6; }
+.splash-system { border-color: var(--gold-dim); color: var(--gold); }
+.splash-npc { border-color: #3d5a8c; color: #a9c0e8; }
+.splash-player { border-color: #4a6b45; }
+@keyframes splashIn {
+  from { opacity: 0; transform: translateY(-14px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes splashOut {
+  to { opacity: 0; transform: translateY(-10px); }
+}
+
+/* Always-pixel odds and ends */
+body.pixel-mode nav { border-bottom-width: 3px; }
+body.pixel-mode .btn { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.85rem; }
+body.pixel-mode .prose .tip, body.pixel-mode .hero .intro, body.pixel-mode .feature { border-radius: 0; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
+body.pixel-mode .prose th, body.pixel-mode .prose td { border-width: 2px; }

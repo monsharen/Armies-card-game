@@ -6,9 +6,9 @@
   <title>Print &amp; Play — Kartenburg</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="pixel-mode">
   <nav>
-    <a class="brand" href="index.html">🃏 Kartenburg</a>
+    <a class="brand" href="index.html">🃏 <span class="pixel-title" data-scale="2">Kartenburg</span></a>
     <a class="navlink" href="index.html">Home</a>
     <a class="navlink" href="game.html">Play</a>
     <a class="navlink" href="rules.html">How to Play</a>
@@ -19,7 +19,7 @@
     <p class="no-print"><button class="btn primary" onclick="window.print()">🖨️ Print this sheet</button>
     — one page, everything you need at the table.</p>
 
-    <h1>Kartenburg — Reference Sheet</h1>
+    <h1 class="pixel-title" data-scale="4">Kartenburg — Reference Sheet</h1>
     <p><em>Four armies converge on Kartenburg, the castle of cards.</em></p>
     <p><strong>Needs:</strong> one 52-card deck · pen &amp; paper for the glory tally ·
     a sketched board (below) or just lay cards in rows. 1–4 players; unplayed armies run
@@ -86,5 +86,6 @@
   </main>
 
   <footer>Kartenburg — a browser war game playable with a regular deck, pen and paper.</footer>
+  <script src="js/pixeltext.js"></script>
 </body>
 </html>

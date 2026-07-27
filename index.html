@@ -6,11 +6,11 @@
   <title>Kartenburg — a war game for a regular deck of cards</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="pixel-mode">
   <canvas id="swirlCanvas" class="swirl-canvas" aria-hidden="true"></canvas>
   <div class="bg-swirl" aria-hidden="true"></div>
   <nav>
-    <a class="brand" href="index.html">🃏 Kartenburg</a>
+    <a class="brand" href="index.html">🃏 <span class="pixel-title" data-scale="2">Kartenburg</span></a>
     <a class="navlink active" href="index.html">Home</a>
     <a class="navlink" href="game.html">Play</a>
     <a class="navlink" href="rules.html">How to Play</a>
@@ -19,7 +19,7 @@
 
   <main>
     <div class="hero">
-      <h1>Kartenburg</h1>
+      <h1 class="pixel-title wave" data-scale="7">Kartenburg</h1>
       <p class="suits"><span class="red">♥</span> ♠ <span class="red">♦</span> ♣</p>
       <p class="tagline">Four armies, one city, one regular deck of cards.</p>
       <p class="intro">Far from any map you know lies <strong>Kartenburg</strong>, the castle
@@ -71,5 +71,6 @@
 
   <footer>Kartenburg — a browser war game playable with a regular deck, pen and paper.</footer>
   <script src="js/swirl.js"></script>
+  <script src="js/pixeltext.js"></script>
 </body>
 </html>
