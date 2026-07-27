@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Play — Kartenburg</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -37,6 +37,9 @@
         <div id="hudScore"></div>
         <div class="hud-right">
           <span id="hudInfo"></span>
+          <button class="btn slim" onclick="camZoomBtn(-1)" title="Zoom out">−</button>
+          <button class="btn slim" onclick="camFitBtn()" title="Zoom to fit">⤢</button>
+          <button class="btn slim" onclick="camZoomBtn(1)" title="Zoom in">+</button>
           <button class="btn slim" onclick="toggleLogDrawer()" title="Chronicle">📜</button>
           <button class="btn slim" onclick="togglePause(true)" title="Menu">☰</button>
         </div>
