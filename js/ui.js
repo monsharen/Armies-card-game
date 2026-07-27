@@ -17,6 +17,7 @@ const ui = {
   npcTimer: null,
   numHumans: 1,
   pendingHide: {},     // suit -> drawn cards still in flight (hidden in hand)
+  logSeen: 0,          // chronicle entries already splashed on screen
 };
 
 const BOARD_POS = {
@@ -47,6 +48,7 @@ function newGame(numHumans) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
+  ui.logSeen = 0;
   game = createGame(numHumans);
   sfx.startMusic();
   document.getElementById('setup').classList.add('hidden');
@@ -56,6 +58,7 @@ function newGame(numHumans) {
   markPendingHides(events);
   render();
   playFx(events);
+  splashNewLog();
   maybeScheduleNpc();
 }
 
@@ -74,8 +77,34 @@ function afterEngineCall() {
   markPendingHides(events);
   render();
   playFx(events);
+  splashNewLog();
   if (game.over) { setTimeout(showEndModal, Math.max(600, fxUntil - Date.now())); return; }
   maybeScheduleNpc();
+}
+
+/* The chronicle stays the full history; every fresh line also pops on screen
+ * as a short-lived splash, staggered so they read as the action plays out. */
+function splashNewLog() {
+  const fresh = game.log.slice(ui.logSeen);
+  ui.logSeen = game.log.length;
+  let delay = 0;
+  for (const entry of fresh) {
+    if (entry.kind === 'turn') continue; // the turn banner covers these
+    setTimeout(() => spawnSplash(entry), delay);
+    delay += 500;
+  }
+}
+
+function spawnSplash(entry) {
+  const feed = document.getElementById('splashFeed');
+  if (!feed) return;
+  const el = document.createElement('div');
+  el.className = 'splash splash-' + entry.kind;
+  el.textContent = entry.msg;
+  feed.prepend(el);
+  while (feed.children.length > 3) feed.lastChild.remove();
+  setTimeout(() => el.classList.add('out'), 2600);
+  setTimeout(() => el.remove(), 3100);
 }
 
 /* Cards drawn or dealt this batch stay invisible in the hand until their
@@ -334,38 +363,13 @@ const COURT_EMBLEM = { J: '🗡️', Q: '🚩', K: '👑' };
 
 /* ── Pixel mode: cards drawn on tiny canvases, upscaled nearest-neighbor ── */
 
-let pixelMode = false;
-try { pixelMode = localStorage.getItem('kartenburg-pixel') === '1'; } catch (e) { }
+const pixelMode = true; // pixel art is the game's one and only style
 
 const spriteCache = new Map();
 
 /* Pixel-perfect card sprites: no canvas text (it antialiases) — everything
  * is drawn from hand-made bitmaps with 1px fillRects, then displayed at an
  * exact integer upscale with image-rendering: pixelated. */
-
-const PIX_FONT = {
-  '0': ['111', '101', '101', '101', '111'],
-  '1': ['010', '110', '010', '010', '111'],
-  '2': ['111', '001', '111', '100', '111'],
-  '3': ['111', '001', '011', '001', '111'],
-  '4': ['101', '101', '111', '001', '001'],
-  '5': ['111', '100', '111', '001', '111'],
-  '6': ['111', '100', '111', '101', '111'],
-  '7': ['111', '001', '010', '010', '010'],
-  '8': ['111', '101', '111', '101', '111'],
-  '9': ['111', '101', '111', '001', '111'],
-  A: ['010', '101', '111', '101', '101'],
-  J: ['111', '010', '010', '010', '110'],
-  Q: ['010', '101', '101', '010', '001'],
-  K: ['101', '101', '110', '101', '101'],
-};
-
-const PIX_SUIT = {
-  hearts:   ['01010', '11111', '11111', '01110', '00100'],
-  diamonds: ['00100', '01110', '11111', '01110', '00100'],
-  spades:   ['00100', '01110', '11111', '11111', '00100'],
-  clubs:    ['00100', '01110', '11111', '00100', '01110'],
-};
 
 const PIX_EMBLEM = {
   K: { rows: ['10000100001', '11001110011', '11111111111', '01111111110', '01111111110'],
@@ -375,22 +379,6 @@ const PIX_EMBLEM = {
   J: { rows: ['0001000', '0011100', '0011100', '0011100', '0011100', '0011100', '2222222', '0002000', '0022200'],
        colors: { 1: '#8f9aa8', 2: '#6b4a2c' } },
 };
-
-function drawPix(ctx, rows, x, y, colors, rot) {
-  const h = rows.length;
-  for (let j = 0; j < h; j++) {
-    const row = rows[j];
-    for (let i = 0; i < row.length; i++) {
-      const ch = row[i];
-      if (ch === '0') continue;
-      const color = colors[ch] || colors['1'];
-      if (!color) continue;
-      ctx.fillStyle = color;
-      if (rot) ctx.fillRect(x + (row.length - 1 - i), y + (h - 1 - j), 1, 1);
-      else ctx.fillRect(x + i, y + j, 1, 1);
-    }
-  }
-}
 
 function drawRank(ctx, rank, x, y, ink, rot) {
   const glyphs = rank === '10' ? ['1', '0'] : [rank];
@@ -461,20 +449,6 @@ function cardSprite(card, size) {
   const url = cv.toDataURL();
   spriteCache.set(key, url);
   return url;
-}
-
-function togglePixel() {
-  pixelMode = !pixelMode;
-  try { localStorage.setItem('kartenburg-pixel', pixelMode ? '1' : '0'); } catch (e) { }
-  document.body.classList.toggle('pixel-mode', pixelMode);
-  updatePixelBtns();
-  if (game) render();
-}
-
-function updatePixelBtns() {
-  document.querySelectorAll('.pixelBtn').forEach(b => {
-    b.textContent = '🕹️ Pixel mode: ' + (pixelMode ? 'on' : 'off');
-  });
 }
 
 function pcardHTML(card, cls, onclick) {
@@ -1268,6 +1242,5 @@ function toggleSound() {
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('muteBtn');
   if (btn) btn.textContent = sfx.isMuted() ? '🔇 Sound off' : '🔊 Sound on';
-  document.body.classList.toggle('pixel-mode', pixelMode);
-  updatePixelBtns();
+  document.body.classList.add('pixel-mode');
 });

@@ -6,11 +6,11 @@
   <title>Play — Kartenburg</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
+<body class="pixel-mode">
   <canvas id="swirlCanvas" class="swirl-canvas" aria-hidden="true"></canvas>
   <div class="bg-swirl" aria-hidden="true"></div>
   <nav>
-    <a class="brand" href="index.html">🃏 Kartenburg</a>
+    <a class="brand" href="index.html">🃏 <span class="pixel-title" data-scale="2">Kartenburg</span></a>
     <a class="navlink" href="index.html">Home</a>
     <a class="navlink active" href="game.html">Play</a>
     <a class="navlink" href="rules.html">How to Play</a>
@@ -19,7 +19,7 @@
 
   <main>
     <div id="setup">
-      <h2>Muster the Armies</h2>
+      <h2 class="pixel-title wave" data-scale="4">Muster the Armies</h2>
       <p class="seat-note">The march on Kartenburg. Four armies always fight — ♥ Hearts, ♠ Spades,
       ♦ Diamonds and ♣ Clover. Any army without a player at the table runs
       on the automated flip-two-cards script, and turns alternate around the board.</p>
@@ -29,7 +29,6 @@
         <button class="btn big" onclick="newGame(3)">3 Players<br><small>+ 1 automated army</small></button>
         <button class="btn big" onclick="newGame(4)">4 Players<br><small>no automation</small></button>
       </div>
-      <p style="margin-top:1.4rem"><button class="btn pixelBtn" onclick="togglePixel()">🕹️ Pixel mode: off</button></p>
     </div>
 
     <div id="gameArea" class="hidden">
@@ -43,24 +42,23 @@
 
         <div class="sidebar">
           <div class="panel">
-            <h3>Glory</h3>
+            <h3><span class="pixel-title" data-scale="2">Glory</span></h3>
             <div id="scoreboard"></div>
           </div>
 
           <div class="panel">
-            <h3>Turn</h3>
+            <h3><span class="pixel-title" data-scale="2">Turn</span></h3>
             <div id="turnPanel"></div>
           </div>
 
           <div class="panel">
-            <h3>Chronicle</h3>
+            <h3><span class="pixel-title" data-scale="2">Chronicle</span></h3>
             <div id="log" class="log-panel"></div>
           </div>
 
           <div class="panel">
             <button class="btn" onclick="backToSetup()">🔄 New War</button>
             <button class="btn" id="muteBtn" onclick="toggleSound()">🔊 Sound on</button>
-            <button class="btn pixelBtn" onclick="togglePixel()">🕹️ Pixel mode: off</button>
           </div>
         </div>
       </div>
@@ -83,7 +81,7 @@
 
   <div id="endModal" class="modal-backdrop hidden">
     <div class="modal">
-      <h2>The War Ends</h2>
+      <h2 class="pixel-title wave" data-scale="3">The War Ends</h2>
       <p id="endVerdict" class="verdict"></p>
       <table id="endTable"></table>
       <div style="display:flex;gap:0.8rem;justify-content:center">
@@ -94,11 +92,14 @@
     </div>
   </div>
 
+  <div id="splashFeed" aria-live="polite"></div>
+
   <div id="fx"></div>
 
   <div id="toast"></div>
 
   <script src="js/swirl.js"></script>
+  <script src="js/pixeltext.js"></script>
   <script src="js/cards.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>

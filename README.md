@@ -36,12 +36,14 @@ seconds (the supply bank is literally a face-up pile of cards).
 
 ## Presentation
 
-Balatro-inspired game feel: a WebGL swirl background rendered at low resolution
-and upscaled nearest-neighbor, living cards (idle sway + 3D cursor tilt), card
-flight trails, hitstop freeze-frames on captures, an animated count-up on the
-final scoreboard, generative WebAudio ambience and sound effects (mute toggle),
-and an optional **Pixel mode** that redraws every card as a low-res canvas
-sprite with hard-edged pixel UI.
+Pixel art throughout, Balatro-inspired: every card is a hand-drawn low-res
+bitmap sprite shown at exact integer upscales, headings are rendered in a
+bitmap pixel font (with slowly waving letters on the menus), and a WebGL swirl
+shader runs at low resolution behind the table. Living cards (idle sway + 3D
+cursor tilt), flight trails, hitstop freeze-frames on captures, a count-up
+final scoreboard, chronicle events that splash on screen as they happen (the
+Chronicle panel keeps the full history), and generative WebAudio ambience and
+sound effects with a mute toggle.
 
 ## Code layout
 
