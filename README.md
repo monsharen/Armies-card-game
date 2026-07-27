@@ -1,7 +1,8 @@
 # 🃏 Four Banners
 
-*"Banners" for short.* A war game for **one regular 52-card deck** — four suit-armies race to capture and hold
-a central citadel. Playable in the browser for 1–4 players (any army without a player
+*"Banners" for short.* Leipzig, October 1813: four armies converge on one city — the
+Battle of the Nations. A war game for **one regular 52-card deck** — four suit-armies race to capture and hold
+the city of Leipzig. Playable in the browser for 1–4 players (any army without a player
 runs on a deterministic script), and equally playable on a kitchen table with a real
 deck, pen and paper.
 
@@ -15,9 +16,9 @@ suit into a single army whose strength is their sum: pips are soldiers, the Ace 
 champion (11), the Jack a raider that snipes the weakest card out of an enemy stack,
 the Queen a banner (+2 to all your battles) and the King a general (marches cost 1
 less). Off-suit cards are supply — a march costs one per card in the stack, so heavy
-hosts move slowly. Armies merge on the road, storm the Citadel (battles compare stack
-totals, defender wins ties, the winner loses its weakest card as casualties), and the
-Citadel pays its holder +1 glory every turn — the clock that punishes waiting for
+hosts move slowly. Armies merge on the road, storm Leipzig (battles compare stack
+totals, defender wins ties, the winner loses its weakest card as casualties), and
+Leipzig pays its holder +1 glory every turn — the clock that punishes waiting for
 perfect cards. Captures score 5, raids and defenses 1. Two seasons, most glory wins.
 
 Automated armies hold no hand: their turn is two card flips — own suit reinforces

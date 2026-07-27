@@ -3,13 +3,13 @@
  *
  * Units are ARMIES: stacks of up to STACK_CAP cards of one suit. An army's
  * strength is the sum of its cards (+2 with its Queen banner). Armies march
- * down a road of ROAD_LEN spaces toward the central Citadel; marching costs
+ * down a road of ROAD_LEN spaces toward Leipzig; marching costs
  * one supply card per card in the stack (King: one less, min 1). Armies can
  * merge by marching onto a friendly army. Battles compare stack totals
  * (defender wins ties): the loser is destroyed and the winner discards its
  * weakest card as casualties — victories cost blood, so no army is forever.
  *
- * The Citadel pays tribute: +1 glory at the start of each of your turns while
+ * Leipzig pays tribute: +1 glory at the start of each of your turns while
  * your army garrisons it. That clock is what punishes waiting at home for
  * perfect cards.
  */
@@ -79,8 +79,8 @@ function createGame(numHumans) {
   }
   const g = [state.deck.pop(), state.deck.pop()];
   state.garrison = { cards: g, owner: null };
-  addLog(state, 'system', 'The war for the Citadel begins. Mercenaries hold it: ' +
-    stackLabel(g) + ' (strength ' + stackSum(g) + '). The Citadel pays its holder ' +
+  addLog(state, 'system', 'The war for Leipzig begins. Mercenaries hold it: ' +
+    stackLabel(g) + ' (strength ' + stackSum(g) + '). Leipzig pays its holder ' +
     GLORY.tribute + ' glory at the start of each of their turns.');
   beginTurn(state);
   return state;
@@ -167,7 +167,7 @@ function beginTurn(state) {
   const army = currentArmy(state);
   if (state.garrison.owner === army.suit) {
     army.glory += GLORY.tribute;
-    addLog(state, 'system', '👑 ' + armyName(army.suit) + ' collects the Citadel tribute: +' +
+    addLog(state, 'system', '👑 ' + armyName(army.suit) + ' collects Leipzig tribute: +' +
       GLORY.tribute + ' glory.');
   }
   if (army.isHuman) {
@@ -231,7 +231,7 @@ function resolveAssault(state, suit, stack) {
     state.garrison = { cards: stack.cards, owner: suit };
     state.armies[suit].glory += GLORY.capture;
     addLog(state, 'battle', '🏰 ' + armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
-      ' (' + attStr + ') storms the Citadel, destroying ' + defName + ' (' + defStr + ')! +' +
+      ' (' + attStr + ') storms Leipzig, destroying ' + defName + ' (' + defStr + ')! +' +
       GLORY.capture + ' glory.' + (fallen ? ' Casualties: ' + cardLabel(fallen) + '.' : ''));
   } else {
     for (const c of stack.cards) state.discard.push(c);
@@ -311,7 +311,7 @@ function executePlan(state, suit, plan) {
   else army.road[plan.from.idx] = null;
   if (plan.kind === 'assault') {
     addLog(state, 'player', armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
-      ' marches on the Citadel!');
+      ' marches on Leipzig!');
     resolveAssault(state, suit, stack);
   } else if (plan.kind === 'merge') {
     const ahead = army.road[plan.dest.idx];
