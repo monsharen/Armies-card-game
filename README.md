@@ -10,17 +10,20 @@ browser, or host it with GitHub Pages.
 
 ## The game in one paragraph
 
-Each suit is an army: number cards are soldiers (strength = pips), the Ace a champion
-(11), the Jack a one-shot raider, the Queen a banner (+2 to all your battles) and the
-King a general (marches move 2). Cards of other suits are supply — one pays for each
-march. Armies march down their road toward the Citadel; battles are a single strength
-comparison (defender wins ties); capturing the Citadel scores 5 glory, holding it at
-each season's end 3, winning raids and defenses 1. Two seasons (one reshuffle), most
-glory wins.
+Each suit is an army. You build fighting hosts by stacking up to three cards of your
+suit into a single army whose strength is their sum: pips are soldiers, the Ace a
+champion (11), the Jack a raider that snipes the weakest card out of an enemy stack,
+the Queen a banner (+2 to all your battles) and the King a general (marches cost 1
+less). Off-suit cards are supply — a march costs one per card in the stack, so heavy
+hosts move slowly. Armies merge on the road, storm the Citadel (battles compare stack
+totals, defender wins ties, the winner loses its weakest card as casualties), and the
+Citadel pays its holder +1 glory every turn — the clock that punishes waiting for
+perfect cards. Captures score 5, raids and defenses 1. Two seasons, most glory wins.
 
-Automated armies hold no hand: their turn is two card flips — own suit deploys,
-anything else marches the frontmost unit. Fully deterministic, so at a real table any
-player can run them in seconds.
+Automated armies hold no hand: their turn is two card flips — own suit reinforces
+their most forward army, anything else banks supply until the frontmost army can
+afford to march. Fully deterministic, so at a real table any player can run them in
+seconds (the supply bank is literally a face-up pile of cards).
 
 ## Pages
 

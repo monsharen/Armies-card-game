@@ -18,90 +18,107 @@
   <main class="prose">
     <h1>How to Play</h1>
     <p><strong>Four Banners</strong> is a war game for one standard 52-card deck. Four
-    armies — <span class="red">♥ Hearts</span>, ♠ Spades,
-    <span class="red">♦ Diamonds</span> and ♣ Clover — race down their roads to
-    capture the central <strong>Citadel</strong> and hold it through two seasons of war.
-    1–4 players; every army without a player runs itself with a simple scripted turn.</p>
+    armies — <span class="red">♥ Hearts</span>, ♠ Spades, <span class="red">♦ Diamonds</span>
+    and ♣ Clover — <strong>build fighting hosts</strong> out of their suit's cards and march
+    them down their roads to capture the central <strong>Citadel</strong>, which pays its
+    holder tribute every turn. 1–4 players; every army without a player runs itself with a
+    simple scripted turn.</p>
 
     <h2>The board</h2>
     <p>A Citadel in the middle; four roads of <strong>3 spaces</strong> radiating out to
-    each army's <strong>camp</strong>. Cards are the units: a road space holds at most one
-    card, the camp holds any number. (On a real table, sketch the cross on paper or just
-    lay cards in rows — see <a href="reference.html">Print &amp; Play</a>.)</p>
+    each army's <strong>camp</strong>. A road space holds at most one army; the camp holds
+    any number. (On a real table, sketch the cross on paper or just lay cards in rows —
+    see <a href="reference.html">Print &amp; Play</a>.)</p>
 
-    <h2>What your cards mean</h2>
-    <p>Cards of <strong>your own suit</strong> are your army:</p>
+    <h2>Armies are stacks</h2>
+    <p>A unit on the board is an <strong>army</strong>: a stack of up to <strong>3
+    cards</strong> of your suit. Its strength is the <strong>sum of its cards</strong>
+    (+2 while your Queen's banner flies). Building the best army — and choosing when it's
+    strong <em>enough</em> — is the whole game.</p>
     <table>
       <tr><th>Card</th><th>Role</th><th>Strength</th></tr>
       <tr><td>2–10</td><td>Soldier</td><td>Pip value</td></tr>
       <tr><td>Ace</td><td>Champion</td><td>11</td></tr>
-      <tr><td>Jack</td><td>Raider — one-shot attack on any enemy road unit, <em>or</em> deploy as a soldier</td><td>11</td></tr>
-      <tr><td>Queen</td><td>Banner — stays in camp; <strong>all your units fight at +2</strong></td><td>—</td></tr>
-      <tr><td>King</td><td>General — stays in camp; <strong>your marches move up to 2 spaces</strong></td><td>—</td></tr>
+      <tr><td>Jack</td><td>Raider — strikes the <strong>weakest card</strong> of any enemy army on a road, <em>or</em> deploys as a soldier</td><td>11</td></tr>
+      <tr><td>Queen</td><td>Banner — stays in camp; <strong>all your armies fight at +2</strong></td><td>—</td></tr>
+      <tr><td>King</td><td>General — stays in camp; <strong>your marches cost 1 less supply</strong></td><td>—</td></tr>
     </table>
-    <p>Cards of <strong>any other suit</strong> are <strong>supply</strong> — you discard
-    one to pay for each march. About three-quarters of what you draw is supply, so soldiers
-    are precious and movement is cheap.</p>
+    <p>Cards of <strong>any other suit</strong> are <strong>supply</strong>: marching an
+    army costs one supply per card in its stack. Big hosts hit hard but move slowly and
+    expensively; a lone scout is fast and cheap.</p>
 
     <h2>Setup</h2>
     <p>Shuffle the deck. Deal <strong>4 cards</strong> to each human player (automated
-    armies hold no hand). Flip one card onto the Citadel — that's the neutral mercenary
-    garrison, defending at its printed strength (J=11, Q=12, K=13, A=11). Turn order runs
+    armies hold no hand). Flip <strong>two cards</strong> onto the Citadel — the neutral
+    mercenary garrison, defending at their combined strength. Turn order runs
     ♥ → ♠ → ♦ → ♣; with two players you sit at ♥ and ♦, so play alternates human and
     automated army.</p>
 
     <h2>A player turn</h2>
-    <p><strong>1. Draw 2 cards</strong> (hand limit 7 — discard down after drawing).<br>
+    <p><strong>0. Tribute:</strong> if your army holds the Citadel, <strong>+1 glory</strong>.<br>
+    <strong>1. Draw 2 cards</strong> (hand limit 7 — discard down after drawing).<br>
     <strong>2. Take up to 2 actions</strong>, any mix of:</p>
     <table>
       <tr><th>Action</th><th>What happens</th></tr>
-      <tr><td>🛡️ <strong>Deploy</strong></td><td>Play a card of your suit: soldiers, Champion and Jack go to your camp; Queen and King take their camp posts.</td></tr>
-      <tr><td>🥾 <strong>March</strong></td><td>Discard any off-suit card; one of your units advances 1 space (up to 2 with your King). Camp → road, road → road, or gate → <strong>assault the Citadel</strong>. No jumping over occupied spaces.</td></tr>
-      <tr><td>🗡️ <strong>Raid</strong></td><td>Play your Jack at any enemy unit on any road. Fight at 11 (+2 with your Banner). Win or lose, the Jack is discarded — raiders always withdraw.</td></tr>
+      <tr><td>🛡️ <strong>Deploy</strong></td><td>Play a card of your suit: found a <em>new army</em> in camp, or <em>reinforce</em> any of your armies — in camp, on the road, or garrisoning the Citadel (max 3 cards). Queen and King take their camp posts instead.</td></tr>
+      <tr><td>🥾 <strong>March</strong></td><td>Discard one supply per card in the stack (King: one less, min 1); the army advances one space. Marching onto your own army <strong>merges</strong> them (if the result fits under 3 cards); marching from the gate <strong>assaults the Citadel</strong>.</td></tr>
+      <tr><td>🗡️ <strong>Raid</strong></td><td>Play your Jack at any enemy army on a road. It strikes the army's <strong>weakest card</strong>, fighting at 11 (+2 with your Banner). Win and that card is discarded. Win or lose, the Jack withdraws (discard).</td></tr>
     </table>
     <p>You may also hold position (end your turn early).</p>
 
     <h2>Battles</h2>
-    <p>One comparison: <strong>attacker strength vs. defender strength</strong>, each +2 if
-    their Queen is in camp. <strong>Defender wins ties.</strong> The loser's card goes to
-    the discard pile. A unit that wins an assault enters the Citadel and becomes the new
-    garrison; its army scores <strong>+5 glory</strong>. Winning any other battle — a raid,
-    or defending — scores <strong>+1 glory</strong>.</p>
+    <p>One comparison: <strong>attacker's stack total vs. defender's stack total</strong>,
+    each +2 if their Queen is in camp. <strong>Defender wins ties.</strong> The losing army
+    is destroyed (all its cards discarded) — and the <strong>winner discards its weakest
+    card as casualties</strong> (a single-card army is spared). Victories cost blood:
+    even the mightiest host erodes with every battle it wins, garrisons included.</p>
+    <p>A victorious assault moves the attacking army (after casualties) into the Citadel
+    as the new garrison: <strong>+5 glory</strong>. Repelling an assault or winning either
+    side of a raid: <strong>+1 glory</strong>.</p>
+
+    <h2>The Citadel pays tribute 👑</h2>
+    <p>At the start of each of your turns, if your army garrisons the Citadel you collect
+    <strong>+1 glory</strong>. This is the game's clock: every turn you spend at home
+    assembling the perfect host, the current holder banks another point. Garrisons can be
+    reinforced like any army — but they erode by one card each time they repel an assault,
+    so even a fortress can be brought down by waves of cheap attackers.</p>
 
     <h2>Automated armies</h2>
     <p>An automated army's turn is two card flips off the deck, resolved one at a time —
     any player can run it in seconds:</p>
     <table>
       <tr><th>Flip</th><th>The army…</th></tr>
-      <tr><td>Its own suit</td><td>Deploys it: soldiers/Ace to camp; Q and K take their posts; a <strong>Jack raids immediately</strong> — the enemy unit nearest the Citadel (tie: strongest, then clockwise) — or joins the camp if there's nothing to raid.</td></tr>
-      <tr><td>Any other suit</td><td><strong>Marches</strong>: its frontmost unit advances as far as it can (assaulting the Citadel from the gate); if no road unit can move, its strongest camp unit steps out; with no units at all, the supply is wasted.</td></tr>
+      <tr><td>Its own suit</td><td>Q and K take their posts. A <strong>Jack raids</strong> the enemy army nearest the Citadel (tie: strongest, then clockwise) — or reinforces if there's nothing to raid. Anything else <strong>reinforces the most forward army with room</strong> (garrison first, then road, then camp), or founds a new army.</td></tr>
+      <tr><td>Any other suit</td><td>Goes to its <strong>supply pile</strong> (face up beside its road). The moment the pile covers the frontmost army's march cost, that army <strong>marches</strong> (assaulting from the gate) and the pile is spent.</td></tr>
     </table>
-    <p>No decisions, fully deterministic — and relentless: automated armies always come
-    down the road at you.</p>
+    <p>No decisions, fully deterministic — automated hosts mass at the gate and surge
+    whenever their supplies allow.</p>
 
-    <h2>Seasons, glory and winning</h2>
-    <p>When the deck runs out, the <strong>season ends</strong>: whoever holds the Citadel
-    scores <strong>+3 glory</strong>, the discard pile is reshuffled, and a second season is
-    played. When the deck runs out again, the war is over — <strong>most glory wins</strong>.</p>
+    <h2>Glory, seasons and winning</h2>
     <table>
       <tr><th>Deed</th><th>Glory</th></tr>
       <tr><td>Capture the Citadel</td><td>+5 🏅</td></tr>
-      <tr><td>Hold the Citadel at season's end</td><td>+3 🏅</td></tr>
-      <tr><td>Win a raid or a defense</td><td>+1 🏅</td></tr>
+      <tr><td>Hold the Citadel at the start of your turn</td><td>+1 🏅</td></tr>
+      <tr><td>Win a raid or repel an assault</td><td>+1 🏅</td></tr>
     </table>
+    <p>When the deck runs out, the season ends: the discard pile is reshuffled and a second
+    season is played. When the deck runs out again the war is over — <strong>most glory
+    wins</strong>.</p>
 
     <h2>Strategy tips</h2>
-    <div class="tip">👑 <strong>Get your court out early.</strong> The Queen's +2 swings
-    almost every battle, and the King's double marches nearly halve your supply costs.
-    They're worth an action the moment you draw them.</div>
-    <div class="tip">🏰 <strong>The Citadel compounds.</strong> +5 to take it, +3 per
-    season to hold it, +1 for every assault you repel — and your Queen's +2 defends it.
-    Garrison something big.</div>
-    <div class="tip">🗡️ <strong>Save the Jack for a tempo strike.</strong> Raiding the
-    unit at an enemy's gate just before their assault wastes several of their turns. Raiding
-    a 3 by the camp wastes yours.</div>
-    <div class="tip">🥾 <strong>Small soldiers screen.</strong> A 2 at your gate can't take
-    the Citadel — but as raid bait and a road-blocker it buys your real column time.</div>
+    <div class="tip">⚖️ <strong>Strong enough beats perfect.</strong> The tribute clock
+    means a 2-card army that takes the Citadel today usually out-earns a 3-card monster
+    that arrives four turns later. Count the garrison's strength and build one point past
+    it — no more.</div>
+    <div class="tip">🌊 <strong>Fortresses fall to waves.</strong> A repelled assault still
+    knocks the weakest card out of the garrison. Two cheap sacrificial attacks can strip a
+    30-strength garrison down to one card — then your real army walks in.</div>
+    <div class="tip">🗡️ <strong>Raid the siege camp.</strong> A Jack that picks the 10 out
+    of an enemy's gate army wastes several of their turns and supplies. Save raids for
+    stacks about to assault.</div>
+    <div class="tip">🧩 <strong>Assemble at the gate.</strong> Two small armies marching
+    separately are cheaper to move than one big one — merge them at the last road space,
+    strike, and let your King make the whole operation almost free.</div>
 
     <p><a class="btn primary" href="game.html">▶ Start the War</a></p>
   </main>
