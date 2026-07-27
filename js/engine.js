@@ -1,4 +1,4 @@
-/* Four Banners — pure game engine. No DOM access, so it can be unit-tested in
+/* Kartenburg — pure game engine. No DOM access, so it can be unit-tested in
  * Node and driven by either the UI or headless simulations.
  *
  * Units are ARMIES: stacks of up to STACK_CAP cards of one suit. An army's

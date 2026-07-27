@@ -1,6 +1,6 @@
-# 🃏 Four Banners
+# 🃏 Kartenburg
 
-*"Banners" for short.* A war game for **one regular 52-card deck**: the four realms of
+A war game for **one regular 52-card deck**: the four realms of
 the deck converge on Kartenburg, the castle of cards, to capture and hold it. Playable in the browser for 1–4 players (any army without a player
 runs on a deterministic script), and equally playable on a kitchen table with a real
 deck, pen and paper.
