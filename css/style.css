@@ -527,3 +527,118 @@ footer { text-align: center; color: #555c69; font-size: 0.8rem; padding: 2rem 1r
   .prose th, .prose td { border-color: #999; padding: 0.25rem 0.5rem; }
   .prose .tip { background: #f4f4f4; border-color: #555; }
 }
+
+
+/* ── Balatro-inspired look & feel ───────────────────────────── */
+
+/* Swirling animated background */
+.bg-swirl { position: fixed; inset: -35%; z-index: -1; filter: blur(75px) saturate(1.25); opacity: 0.5; pointer-events: none; }
+.bg-swirl::before, .bg-swirl::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg at 38% 42%, #6d1f2c, #23306d, #1f6d58, #5a4a14, #6d1f2c);
+  animation: swirl 55s linear infinite;
+}
+.bg-swirl::after {
+  background: conic-gradient(from 180deg at 64% 58%, rgba(109,31,80,0.5), rgba(31,68,109,0.5), rgba(20,90,70,0.4), rgba(109,31,80,0.5));
+  animation: swirl 80s linear infinite reverse;
+}
+@keyframes swirl { to { transform: rotate(360deg); } }
+body { background-color: #14161d; }
+
+/* Felt table with a wooden rim */
+.board-wrap {
+  background: radial-gradient(ellipse at 50% 30%, #2b4433 0%, #1e2f24 55%, #131c16 100%);
+  border: 3px solid #4a3620;
+  border-radius: 14px;
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.55), 0 8px 28px rgba(0, 0, 0, 0.5);
+}
+.cell.road { border-color: rgba(255, 255, 255, 0.12); }
+
+/* Chunky card faces with corner indices */
+.pcard {
+  background: linear-gradient(160deg, #fdfaf1 0%, #f1e9d6 100%);
+  border-radius: 8px;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.5), inset 0 0 0 1.5px rgba(255, 255, 255, 0.6);
+}
+.pcard.fancy { position: relative; justify-content: center; }
+.pcard.fancy .pc-idx { position: absolute; display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.pcard.fancy .pc-idx b { font-size: 0.9rem; }
+.pcard.fancy .pc-idx i { font-style: normal; font-size: 0.72rem; }
+.pcard.fancy .pc-idx.tl { top: 5px; left: 6px; }
+.pcard.fancy .pc-idx.br { bottom: 5px; right: 6px; transform: rotate(180deg); }
+.pcard.fancy .pc-mid { font-size: 1.9rem; line-height: 1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.25)); }
+.pcard.back {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(240, 205, 107, 0.16) 0 18%, transparent 19%),
+    repeating-linear-gradient(135deg, #7b2f2f 0 6px, #5d2020 6px 12px);
+  border-color: #3a1414;
+}
+
+/* Living hand: idle sway + 3D cursor tilt */
+#handArea .hand-cards { perspective: 900px; padding-top: 14px; }
+#handArea .hand-slot { --i: 0; position: relative; animation: cardBob 3.8s ease-in-out infinite; animation-delay: calc(var(--i) * -0.47s); }
+#handArea .hand-slot:hover { z-index: 6; }
+@keyframes cardBob {
+  0%, 100% { transform: translateY(0) rotate(-0.7deg); }
+  50% { transform: translateY(-4px) rotate(0.7deg); }
+}
+#handArea .hand-slot .pcard {
+  transform: perspective(650px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--lift, 0px)) scale(var(--sc, 1));
+  transition: transform 0.13s ease-out, box-shadow 0.13s;
+  will-change: transform;
+}
+#handArea .hand-slot:hover .pcard.playable { box-shadow: 0 14px 22px rgba(0, 0, 0, 0.65), 0 0 14px rgba(212, 167, 44, 0.5); }
+#handArea .hand-slot:active .pcard { transition-duration: 0.05s; transform: perspective(650px) translateY(-6px) scale(0.97); }
+
+/* Bouncy buttons */
+.btn { transition: transform 0.12s cubic-bezier(0.3, 1.6, 0.6, 1), box-shadow 0.12s; }
+.btn:hover:not(:disabled) { transform: translateY(-2px) rotate(-0.6deg) scale(1.03); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.95); }
+
+/* Citadel breathes */
+.cell.citadel { animation: citadelGlow 3.2s ease-in-out infinite; }
+@keyframes citadelGlow {
+  0%, 100% { box-shadow: 0 0 12px rgba(212, 167, 44, 0.22); }
+  50% { box-shadow: 0 0 28px rgba(212, 167, 44, 0.55); }
+}
+
+/* Glory pops when it changes */
+.score-glory.bump { animation: gloryBump 0.6s cubic-bezier(0.3, 1.6, 0.6, 1); color: var(--gold); }
+@keyframes gloryBump { 0% { transform: scale(1); } 35% { transform: scale(1.45); } 100% { transform: scale(1); } }
+
+/* Turn banner sweeping across the table */
+.fx-banner {
+  position: fixed;
+  left: 0; right: 0;
+  top: 42%;
+  display: flex;
+  justify-content: center;
+  z-index: 48;
+  pointer-events: none;
+}
+.fx-banner span {
+  font-size: 1.5rem;
+  font-weight: bold;
+  letter-spacing: 0.14em;
+  color: #fff;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tint) 82%, #000) 18%, color-mix(in srgb, var(--tint) 82%, #000) 82%, transparent);
+  padding: 0.55rem 4.5rem;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
+  animation: bannerSweep 1.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+@keyframes bannerSweep {
+  0% { transform: translateX(-120vw) skewX(-8deg); }
+  22% { transform: translateX(0) skewX(0); }
+  78% { transform: translateX(0); opacity: 1; }
+  100% { transform: translateX(120vw) skewX(8deg); opacity: 0; }
+}
+
+/* Modals pop in */
+.modal { animation: modalIn 0.28s cubic-bezier(0.3, 1.5, 0.6, 1); }
+@keyframes modalIn { from { transform: scale(0.82); opacity: 0; } }
+
+/* Panels get a touch of depth over the swirl */
+.panel, .board-wrap, .feature, .hero .intro { backdrop-filter: saturate(1.05); }
