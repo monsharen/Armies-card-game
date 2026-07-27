@@ -57,7 +57,13 @@ function newGame(numHumans) {
   document.getElementById('pauseMenu').classList.add('hidden');
   const events = game.events.splice(0);
   markPendingHides(events);
+  cam.map = null;
+  cam.turnKey = -1;
+  cam.manual = false;
   render();
+  measureBoard();
+  initCameraInput();
+  updateCamera(false);
   playFx(events);
   maybeScheduleNpc();
 }
@@ -89,18 +95,215 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
-/* Scale the board to fill whatever screen the game runs on. */
-function fitBoard() {
-  const vp = document.querySelector('.board-viewport');
-  const scaler = document.querySelector('.board-scale');
-  if (!vp || !scaler) return;
-  scaler.style.transform = 'none';
-  const bw = scaler.offsetWidth || 1;
-  const bh = scaler.offsetHeight || 1;
-  const scale = Math.min(vp.clientWidth / bw, vp.clientHeight / bh) * 0.97;
-  scaler.style.transform = 'scale(' + Math.min(scale, 1.6).toFixed(3) + ')';
+/* ── Board camera: pan / zoom / auto-focus ────────────────────────────
+ * On screens too small to show the whole table readably, the camera follows
+ * whoever is playing, punches in on battles, and zooms out on demand. Drag,
+ * pinch and wheel give manual control until the next turn. */
+
+const cam = {
+  x: 0, y: 0, z: 1,
+  w: 0, h: 0,           // unscaled board size
+  map: null,            // board-space rects of every cell, keyed by data-cell
+  manual: false,        // user drove the camera this turn
+  turnKey: -1,
+  punchT: null,
+};
+const CAM_MIN = 0.3;
+const CAM_MAX = 2.4;
+
+function camViewport() { return document.querySelector('.board-viewport'); }
+function camScaler() { return document.querySelector('.board-scale'); }
+
+function measureBoard() {
+  const sc = camScaler();
+  if (!sc) return;
+  const t = sc.style.transform;
+  sc.style.transition = 'none';
+  sc.style.transform = 'none';
+  const sr = sc.getBoundingClientRect();
+  cam.w = sr.width;
+  cam.h = sr.height;
+  cam.map = {};
+  sc.querySelectorAll('[data-cell], .cell.pile').forEach(el => {
+    const key = el.dataset.cell || el.id;
+    const r = el.getBoundingClientRect();
+    cam.map[key] = { x: r.left - sr.left, y: r.top - sr.top, w: r.width, h: r.height };
+  });
+  sc.style.transform = t;
 }
-window.addEventListener('resize', fitBoard);
+
+function applyCamera(animate) {
+  const sc = camScaler();
+  if (!sc) return;
+  sc.style.transition = animate ? 'transform 0.55s cubic-bezier(0.25, 0.8, 0.35, 1)' : 'none';
+  sc.style.transform = 'translate(' + cam.x.toFixed(1) + 'px,' + cam.y.toFixed(1) + 'px) scale(' + cam.z.toFixed(3) + ')';
+}
+
+function clampCam() {
+  const vp = camViewport();
+  if (!vp) return;
+  const bw = cam.w * cam.z;
+  const bh = cam.h * cam.z;
+  if (bw <= vp.clientWidth) cam.x = (vp.clientWidth - bw) / 2;
+  else cam.x = Math.min(48, Math.max(vp.clientWidth - bw - 48, cam.x));
+  if (bh <= vp.clientHeight) cam.y = (vp.clientHeight - bh) / 2;
+  else cam.y = Math.min(48, Math.max(vp.clientHeight - bh - 48, cam.y));
+}
+
+function frameRect(x, y, w, h, animate) {
+  const vp = camViewport();
+  if (!vp || !w || !h) return;
+  cam.z = Math.min(CAM_MAX, Math.max(CAM_MIN,
+    Math.min(vp.clientWidth / w, vp.clientHeight / h) * 0.93));
+  cam.x = vp.clientWidth / 2 - cam.z * (x + w / 2);
+  cam.y = vp.clientHeight / 2 - cam.z * (y + h / 2);
+  clampCam();
+  applyCamera(animate !== false);
+}
+
+function fitZ() {
+  const vp = camViewport();
+  if (!vp || !cam.w) return 1;
+  return Math.min(vp.clientWidth / cam.w, vp.clientHeight / cam.h) * 0.97;
+}
+
+function camFitAll(animate) {
+  frameRect(0, 0, cam.w, cam.h, animate);
+}
+
+function suitBBox(suit) {
+  const keys = ['camp-' + suit, 'citadel'];
+  for (let i = 0; i < ROAD_LEN; i++) keys.push('road-' + suit + '-' + i);
+  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+  for (const k of keys) {
+    const c = cam.map[k];
+    if (!c) continue;
+    x1 = Math.min(x1, c.x); y1 = Math.min(y1, c.y);
+    x2 = Math.max(x2, c.x + c.w); y2 = Math.max(y2, c.y + c.h);
+  }
+  const pad = 30;
+  return { x: x1 - pad, y: y1 - pad, w: x2 - x1 + pad * 2, h: y2 - y1 + pad * 2 };
+}
+
+function updateCamera(animate) {
+  if (!game || !cam.map) return;
+  if (cam.turnKey !== game.orderIdx) { cam.turnKey = game.orderIdx; cam.manual = false; }
+  if (cam.manual) return;
+  if (fitZ() >= 0.8) camFitAll(animate);
+  else {
+    const b = suitBBox(currentArmy(game).suit);
+    frameRect(b.x, b.y, b.w, b.h, animate);
+  }
+}
+
+/* Brief punch-in on a battle location, then back to the turn framing. */
+function camPunch(key) {
+  if (!cam.map || fitZ() >= 0.8) return;
+  const c = cam.map[key];
+  if (!c) return;
+  frameRect(c.x - 110, c.y - 110, c.w + 220, c.h + 220, true);
+  clearTimeout(cam.punchT);
+  cam.punchT = setTimeout(() => { if (game && !game.over) updateCamera(true); }, 1800);
+}
+
+function camZoomAt(sx, sy, z2) {
+  const vp = camViewport();
+  if (!vp) return;
+  const r = vp.getBoundingClientRect();
+  z2 = Math.min(CAM_MAX, Math.max(CAM_MIN, z2));
+  const px = (sx - r.left - cam.x) / cam.z;
+  const py = (sy - r.top - cam.y) / cam.z;
+  cam.z = z2;
+  cam.x = sx - r.left - px * z2;
+  cam.y = sy - r.top - py * z2;
+  clampCam();
+  applyCamera(false);
+}
+
+function camZoomBtn(dir) {
+  const vp = camViewport();
+  if (!vp) return;
+  cam.manual = true;
+  const r = vp.getBoundingClientRect();
+  camZoomAt(r.left + r.width / 2, r.top + r.height / 2, cam.z * (dir > 0 ? 1.25 : 0.8));
+}
+
+function camFitBtn() {
+  cam.manual = false;
+  updateCamera(true);
+}
+
+/* Drag to pan, pinch to zoom, wheel to zoom, double-tap to toggle overview. */
+function initCameraInput() {
+  const vp = camViewport();
+  if (!vp || vp.dataset.camReady) return;
+  vp.dataset.camReady = '1';
+  const pointers = new Map();
+  let dragged = false;
+  let pinchDist = 0;
+
+  vp.addEventListener('pointerdown', e => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    dragged = false;
+    if (pointers.size === 2) {
+      const p = Array.from(pointers.values());
+      pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+    }
+  });
+  vp.addEventListener('pointermove', e => {
+    if (!pointers.has(e.pointerId)) return;
+    const prev = pointers.get(e.pointerId);
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) {
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      if (dragged || Math.abs(dx) + Math.abs(dy) > 3) {
+        dragged = true;
+        cam.manual = true;
+        cam.x += dx;
+        cam.y += dy;
+        clampCam();
+        applyCamera(false);
+      }
+    } else if (pointers.size === 2) {
+      const p = Array.from(pointers.values());
+      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+      if (pinchDist > 0) {
+        dragged = true;
+        cam.manual = true;
+        camZoomAt((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2, cam.z * (d / pinchDist));
+      }
+      pinchDist = d;
+    }
+  });
+  const endPointer = e => {
+    pointers.delete(e.pointerId);
+    pinchDist = 0;
+    if (dragged) {
+      // swallow the click that follows a drag so cells don't get tapped
+      window.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); },
+        { capture: true, once: true });
+    }
+  };
+  vp.addEventListener('pointerup', endPointer);
+  vp.addEventListener('pointercancel', endPointer);
+  vp.addEventListener('wheel', e => {
+    e.preventDefault();
+    cam.manual = true;
+    camZoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.13 : 0.885));
+  }, { passive: false });
+  vp.addEventListener('dblclick', e => {
+    e.preventDefault();
+    cam.manual = true;
+    if (cam.z > fitZ() * 1.05) camFitAll(true);
+    else {
+      const b = suitBBox(currentArmy(game).suit);
+      frameRect(b.x, b.y, b.w, b.h, true);
+    }
+  });
+}
+
+window.addEventListener('resize', () => { if (game) updateCamera(false); });
 
 function afterEngineCall() {
   const events = game.events.splice(0);
@@ -341,7 +544,7 @@ function render() {
   renderHandoff();
   renderActionModal();
   renderTurnBanner();
-  fitBoard();
+  updateCamera(true);
 }
 
 function renderTurnBanner() {
@@ -602,7 +805,7 @@ function renderHand() {
       (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') + '>' +
       stackHTML(game, handSuit, s.cards) + '</div>';
   }).join('');
-  if (!a.camp.length) campHtml += '<p class="hint">No armies mustered — deploy a card of your suit.</p>';
+  if (!a.camp.length) campHtml += '<p class="hint camp-hint">No armies yet</p>';
   campHtml += '</div></div>';
 
   let html = campHtml + '<div class="hand-block"><h3>' + armyName(handSuit) + ' — your hand' +
@@ -1020,7 +1223,15 @@ function popSel(sel) {
 }
 
 function revealFromDeck(card, destSel, holdMs, onLand) {
-  const deckR = rectOf('#deckPile');
+  let deckR = rectOf('#deckPile');
+  const vp = camViewport();
+  if (vp) {
+    const vr = vp.getBoundingClientRect();
+    if (!deckR || deckR.right < vr.left || deckR.left > vr.right ||
+      deckR.bottom < vr.top || deckR.top > vr.bottom) {
+      deckR = { left: vr.left + vr.width / 2 - 40, top: vr.top + 60, width: 80, height: 100 };
+    }
+  }
   if (!deckR) return;
   const rev = document.createElement('div');
   rev.className = 'fx-reveal';
@@ -1119,6 +1330,7 @@ function runFx(ev) {
       break;
     }
     case 'assault': {
+      camPunch('citadel');
       if (!ev.won) showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
       const r = rectOf(cellSel('citadel'));
       setTimeout(() => {
@@ -1145,6 +1357,7 @@ function runFx(ev) {
       break;
     }
     case 'raid': {
+      camPunch('road-' + ev.targetSuit + '-' + ev.roadIdx);
       showBanner(ev.won ? 'RAIDERS STRIKE!' : 'RAID REPELLED', { tint: '#d06050', variant: 'slash' });
       const targetSel = cellSel('road', ev.targetSuit, ev.roadIdx);
       const tr = rectOf(targetSel);
