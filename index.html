@@ -6,19 +6,17 @@
   <title>Kartenburg</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="pixel-mode app">
+<body class="pixel-mode app on-title">
   <canvas id="swirlCanvas" class="swirl-canvas" aria-hidden="true"></canvas>
   <div class="bg-swirl" aria-hidden="true"></div>
 
   <main>
     <div id="titleScreen" onclick="enterMenu()">
+      <div id="titleFx" aria-hidden="true"></div>
       <div class="title-stack">
         <h1 class="pixel-title wave" data-scale="7">Kartenburg</h1>
-        <p class="suits"><span class="red">♥</span> ♠ <span class="red">♦</span> ♣</p>
-        <p class="tagline">Four armies. One city. One regular deck of cards.</p>
       </div>
       <button class="press-start" type="button" onclick="enterMenu()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Tap to start</span></button>
-      <p class="title-foot">The castle of cards pays tribute to whoever holds its walls.</p>
     </div>
 
     <div id="setup" class="hidden">
