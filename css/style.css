@@ -390,6 +390,35 @@ main { max-width: 1180px; margin: 0 auto; padding: 1.2rem; }
 .modal .winner-row td { color: var(--gold); font-weight: bold; }
 .modal .verdict { font-size: 1.15rem; margin: 0.8rem 0; }
 #handoffText { font-size: 1.3rem; line-height: 1.6; margin-bottom: 1.2rem; }
+
+/* Action modal: explicit choices for discard / deploy / march / raid */
+.modal.action-modal { text-align: left; max-width: 560px; }
+.modal.action-modal h2 { font-size: 1.15rem; text-align: center; }
+.am-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  margin: 0 0 0.55rem;
+  padding: 0.65rem 0.9rem;
+  font-family: inherit;
+  font-size: 0.95rem;
+  text-align: left;
+  background: #262c38;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.am-option:hover { border-color: var(--gold); box-shadow: 0 0 10px rgba(212, 167, 44, 0.35); }
+.am-option .am-main { font-weight: bold; }
+.am-option .am-sub { color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
+.am-cards { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; margin: 0.8rem 0 0.4rem; }
+.am-cards .pcard { cursor: pointer; }
+.am-cards .pcard:hover { transform: translateY(-6px); box-shadow: 0 8px 14px rgba(0, 0, 0, 0.6), 0 0 10px rgba(212, 167, 44, 0.45); }
+.am-cancel { text-align: center; margin-top: 0.8rem; }
+#amBody p { line-height: 1.5; margin: 0 0 0.7rem; }
 .hidden { display: none !important; }
 
 footer { text-align: center; color: #555c69; font-size: 0.8rem; padding: 2rem 1rem; }
