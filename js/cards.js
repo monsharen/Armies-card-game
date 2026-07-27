@@ -1,11 +1,11 @@
-/* Four Banners — standard 52-card deck definitions.
+/* Kartenburg — standard 52-card deck definitions.
  * Each suit is an army. In your own suit:
  *   2–10  soldier (strength = pip value)
  *   A     champion (strength 11)
- *   J     raider — one-shot attack, or deploy as a strength-11 soldier
- *   Q     banner  — camp post, all your units fight at +2
- *   K     general — camp post, your marches move up to 2 spaces
- * Cards of other suits are supply: each march is paid for with one.
+ *   J     raider — strikes an enemy army's weakest card, or deploys as a soldier
+ *   Q     banner  — camp post, all your armies fight at +2
+ *   K     general — camp post, your marches cost 1 less supply
+ * Cards of other suits are supply: a march costs one per card in the stack.
  */
 
 const SUITS = ['hearts', 'spades', 'diamonds', 'clubs']; // clockwise seating & turn order
