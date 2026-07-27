@@ -55,6 +55,7 @@ function newGame(numHumans) {
   document.getElementById('endModal').classList.add('hidden');
   document.getElementById('logDrawer').classList.add('hidden');
   document.getElementById('pauseMenu').classList.add('hidden');
+  document.getElementById('howto').classList.add('hidden');
   const events = game.events.splice(0);
   markPendingHides(events);
   cam.map = null;
@@ -71,7 +72,6 @@ function newGame(numHumans) {
 function backToSetup() {
   clearTimeout(ui.npcTimer);
   ui.npcTimer = null;
-  sfx.stopMusic();
   game = null;
   document.body.classList.remove('playing');
   document.getElementById('endModal').classList.add('hidden');
@@ -79,6 +79,106 @@ function backToSetup() {
   document.getElementById('logDrawer').classList.add('hidden');
   document.getElementById('gameArea').classList.add('hidden');
   document.getElementById('setup').classList.remove('hidden');
+}
+
+/* ── Scenes: title → menu → game; How to Play overlays either ─────────── */
+
+function enterMenu() {
+  document.getElementById('titleScreen').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+  sfx.startMusic();
+  sfx.draw();
+}
+
+const HOWTO_PAGES = [
+  {
+    title: 'The Goal',
+    build: () => '<div class="ht-row ht-center">' +
+      '<div class="ht-citadel"><span class="crown">👑</span>' +
+      pcardHTML({ suit: 'spades', rank: '9', id: '9-spades' }, 'mini') +
+      pcardHTML({ suit: 'diamonds', rank: '6', id: '6-diamonds' }, 'mini') + '</div></div>' +
+      '<p>Kartenburg sits at the center, held by mercenaries. Four armies march on it down four roads.</p>' +
+      '<p><b>Capture the city: +5 glory.</b> Hold it at the start of your turn: <b>+1 tribute</b>. ' +
+      'Win raids and defenses: +1. Most glory after two seasons of the deck wins the war.</p>',
+  },
+  {
+    title: 'Your Cards',
+    build: () => '<div class="ht-row">' +
+      ['7', 'A', 'J', 'Q', 'K'].map(r =>
+        '<div class="ht-card">' + pcardHTML({ suit: 'hearts', rank: r, id: r + '-hearts' }) +
+        '<span>' + ({ 7: 'Soldier', A: 'Champion 11', J: 'Raider 11', Q: 'Banner +2', K: 'General' }[r]) + '</span></div>'
+      ).join('') + '</div>' +
+      '<p>Cards of <b>your suit</b> fight. The Queen posts in camp: all your armies +2. ' +
+      'The King makes marches cost 1 less.</p>' +
+      '<div class="ht-row"><div class="ht-card">' + pcardHTML({ suit: 'clubs', rank: '8', id: '8-clubs' }) +
+      '<span>Supply</span></div><p class="ht-side">Cards of <b>other suits</b> are supply — ' +
+      'each march costs 1 supply per card in the marching stack. Heavy armies are slow.</p></div>',
+  },
+  {
+    title: 'Your Turn',
+    build: () => '<p>Draw 2 cards (hand limit 7), then take up to <b>2 actions</b>:</p>' +
+      '<div class="ht-actions">' +
+      '<div><b>🚩 Deploy</b><br>Muster a new army in camp, or reinforce a camp army — ' +
+      'stacks of up to <b>3 cards</b>, strength is their sum. Once an army marches out, its roster is fixed.</div>' +
+      '<div><b>🥾 March</b><br>Advance one space, paying supply. March onto your own army to <b>merge</b>; ' +
+      'march from the gate to <b>assault Kartenburg</b>.</div>' +
+      '<div><b>🗡️ Raid</b><br>Your Jack strikes the <b>weakest card</b> of any enemy army on a road, then withdraws.</div>' +
+      '</div>',
+  },
+  {
+    title: 'Battle',
+    build: () => '<p class="ht-vs">' +
+      pcardHTML({ suit: 'hearts', rank: '10', id: '10-hearts' }, 'mini') +
+      pcardHTML({ suit: 'hearts', rank: '8', id: '8-hearts' }, 'mini') +
+      '<span class="ht-vs-label">18 vs 15</span>' +
+      pcardHTML({ suit: 'spades', rank: '9', id: '9-spades' }, 'mini') +
+      pcardHTML({ suit: 'spades', rank: '6', id: '6-spades' }, 'mini') + '</p>' +
+      '<p>One comparison: <b>stack total vs stack total</b> (+2 with your Queen). ' +
+      '<b>The defender wins ties.</b> The loser is destroyed — and the <b>winner loses its ' +
+      'weakest card</b> as casualties.</p>' +
+      '<p>Garrisons erode the same way and <b>cannot be reinforced</b>: waves of cheap attackers ' +
+      'bring down any fortress. Every crown falls, eventually.</p>',
+  },
+  {
+    title: 'Rival Armies',
+    build: () => '<div class="ht-row ht-center">' + cardBackHTML() + '</div>' +
+      '<p>Armies without a player flip <b>2 cards</b> off the deck each turn: their own suit ' +
+      'joins their camp (Jacks raid!), anything else piles up as supply — and the moment the pile ' +
+      'covers the front army\'s march cost, <b>it marches</b>.</p>' +
+      '<p>When the deck runs out, the season turns: the fallen shuffle back in, and after the ' +
+      'second season the war ends. <b>Most glory wins.</b></p>',
+  },
+];
+
+function openHowto(fromGame) {
+  ui.howtoReturn = fromGame ? 'game' : 'menu';
+  ui.howtoPage = 0;
+  document.getElementById('pauseMenu').classList.add('hidden');
+  document.getElementById('howto').classList.remove('hidden');
+  renderHowto();
+}
+
+function renderHowto() {
+  const page = HOWTO_PAGES[ui.howtoPage];
+  document.getElementById('howtoTitle').innerHTML =
+    '<span class="pixel-title" data-scale="3">' + page.title + '</span>';
+  document.getElementById('howtoTitle').querySelector('.pixel-title').removeAttribute('data-pixelized');
+  document.getElementById('howtoBody').innerHTML = page.build();
+  document.getElementById('howtoDots').innerHTML = HOWTO_PAGES.map((p, i) =>
+    '<span class="ht-dot' + (i === ui.howtoPage ? ' on' : '') + '"></span>').join('');
+  document.getElementById('howtoPrev').disabled = ui.howtoPage === 0;
+  document.getElementById('howtoNext').disabled = ui.howtoPage === HOWTO_PAGES.length - 1;
+  applyPixelTitles(document.getElementById('howto'));
+}
+
+function howtoStep(dir) {
+  ui.howtoPage = Math.max(0, Math.min(HOWTO_PAGES.length - 1, ui.howtoPage + dir));
+  sfx.flip();
+  renderHowto();
+}
+
+function closeHowto() {
+  document.getElementById('howto').classList.add('hidden');
 }
 
 function toggleLogDrawer() {
@@ -500,6 +600,10 @@ function revealTurn() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('howto').classList.contains('hidden')) {
+    closeHowto();
+    return;
+  }
   if (e.key !== 'Escape' || !game) return;
   if (mustDiscard()) return;
   if (ui.modal) { cancelModal(); return; }
@@ -1497,14 +1601,25 @@ const sfx = (() => {
   };
 })();
 
+function updateMuteBtns() {
+  document.querySelectorAll('.muteBtn').forEach(b => {
+    b.textContent = sfx.isMuted() ? '🔇 Sound off' : '🔊 Sound on';
+  });
+}
+
 function toggleSound() {
-  const nowMuted = sfx.toggle();
-  const btn = document.getElementById('muteBtn');
-  if (btn) btn.textContent = nowMuted ? '🔇 Sound off' : '🔊 Sound on';
+  sfx.toggle();
+  updateMuteBtns();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('muteBtn');
-  if (btn) btn.textContent = sfx.isMuted() ? '🔇 Sound off' : '🔊 Sound on';
+  updateMuteBtns();
   document.body.classList.add('pixel-mode');
+  const title = document.getElementById('titleScreen');
+  if (title) {
+    title.addEventListener('click', enterMenu);
+    document.addEventListener('keydown', e => {
+      if (!title.classList.contains('hidden') && e.key !== 'F12') enterMenu();
+    }, { once: true });
+  }
 });
