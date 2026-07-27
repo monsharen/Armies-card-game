@@ -2,75 +2,136 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kartenburg — a war game for a regular deck of cards</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Kartenburg</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="pixel-mode">
+<body class="pixel-mode app">
   <canvas id="swirlCanvas" class="swirl-canvas" aria-hidden="true"></canvas>
   <div class="bg-swirl" aria-hidden="true"></div>
-  <nav>
-    <a class="brand" href="index.html">🃏 <span class="pixel-title" data-scale="2">Kartenburg</span></a>
-    <a class="navlink active" href="index.html">Home</a>
-    <a class="navlink" href="game.html">Play</a>
-    <a class="navlink" href="rules.html">How to Play</a>
-    <a class="navlink" href="reference.html">Print &amp; Play</a>
-  </nav>
 
   <main>
-    <div class="hero">
-      <h1 class="pixel-title wave" data-scale="7">Kartenburg</h1>
-      <p class="suits"><span class="red">♥</span> ♠ <span class="red">♦</span> ♣</p>
-      <p class="tagline">Four armies, one city, one regular deck of cards.</p>
-      <p class="intro">Far from any map you know lies <strong>Kartenburg</strong>, the castle
-      of cards — a city so rich it pays tribute to whoever holds its walls. Every season the
-      four realms of the deck — Hearts, Spades, Diamonds and Clover — march on its gates down
-      four roads, each under its own banner, while hired mercenaries man the ramparts. There is
-      no history here to reenact: like chess, the war is abstract and yours to write — one card
-      at a time.</p>
-      <div class="cta-row">
-        <a class="btn primary big" href="game.html">▶ Play Now</a>
-        <a class="btn" href="rules.html">How to Play</a>
-        <a class="btn" href="reference.html">Print the Rules</a>
+    <div id="titleScreen">
+      <div class="title-stack">
+        <h1 class="pixel-title wave" data-scale="7">Kartenburg</h1>
+        <p class="suits"><span class="red">♥</span> ♠ <span class="red">♦</span> ♣</p>
+        <p class="tagline">Four armies. One city. One regular deck of cards.</p>
+      </div>
+      <p class="press-start"><span class="pixel-title" data-scale="2" data-color="#ffffff">Tap to start</span></p>
+      <p class="title-foot">The castle of cards pays tribute to whoever holds its walls.</p>
+    </div>
+
+    <div id="setup" class="hidden">
+      <h2 class="pixel-title wave" data-scale="4">Muster the Armies</h2>
+      <p class="seat-note">Four armies always fight — ♥ Hearts, ♠ Spades, ♦ Diamonds and
+      ♣ Clover. Armies without a player run themselves.</p>
+      <div class="menu-list">
+        <button class="btn primary big" onclick="newGame(1)">⚔️ 1 Player</button>
+        <button class="btn primary big" onclick="newGame(2)">⚔️ 2 Players</button>
+        <button class="btn big" onclick="newGame(3)">⚔️ 3 Players</button>
+        <button class="btn big" onclick="newGame(4)">⚔️ 4 Players</button>
+        <span class="menu-divider"></span>
+        <button class="btn" onclick="openHowto(false)">📖 How to Play</button>
+        <button class="btn" onclick="window.open('reference.html', '_blank')">🖨️ Print &amp; Play</button>
+        <button class="btn muteBtn" onclick="toggleSound()">🔊 Sound on</button>
       </div>
     </div>
 
-    <div class="feature-grid">
-      <div class="feature">
-        <span class="big">🃏</span>
-        <h3>Just a deck of cards</h3>
-        <p>Each suit is an army: number cards are soldiers, Aces are champions,
-        Jacks raid, Queens are banners, Kings are generals. No components to buy —
-        the whole game is one standard 52-card deck, and the cards themselves are
-        the units on the board.</p>
+    <div id="gameArea" class="hidden">
+      <div id="hud">
+        <span class="hud-brand pixel-title" data-scale="2">Kartenburg</span>
+        <div id="hudScore"></div>
+        <div class="hud-right">
+          <span id="hudInfo"></span>
+          <button class="btn slim" onclick="camZoomBtn(-1)" title="Zoom out">−</button>
+          <button class="btn slim" onclick="camFitBtn()" title="Zoom to fit">⤢</button>
+          <button class="btn slim" onclick="camZoomBtn(1)" title="Zoom in">+</button>
+          <button class="btn slim" onclick="toggleLogDrawer()" title="Chronicle">📜</button>
+          <button class="btn slim" onclick="togglePause(true)" title="Menu">☰</button>
+        </div>
       </div>
-      <div class="feature">
-        <span class="big">🏰</span>
-        <h3>Build your host</h3>
-        <p>Stack up to three cards into a single army — its strength is their sum.
-        Heavy hosts hit hard but march slowly; lone scouts race ahead. Merge your
-        columns at the gate and storm Kartenburg, which pays its holder tribute
-        every turn.</p>
+      <div class="board-viewport">
+        <div class="board-scale">
+          <div class="board-wrap">
+            <div id="board"></div>
+          </div>
+        </div>
       </div>
-      <div class="feature">
-        <span class="big">🎲</span>
-        <h3>Always four armies</h3>
-        <p>Play with 1–4 players — any army without a player runs on a
-        deterministic flip-two-cards script. Two humans? The other two armies
-        march themselves.</p>
+      <div id="bottomBar">
+        <div id="handArea"></div>
+        <div id="turnPanel"></div>
       </div>
-      <div class="feature">
-        <span class="big">✏️</span>
-        <h3>Pen-and-paper ready</h3>
-        <p>Everything here works on a kitchen table: the board is nine boxes and a
-        cross you can sketch in a minute, the cards are the units, and the only
-        bookkeeping is a glory tally. Print the reference sheet and go.</p>
+    </div>
+
+    <div id="howto" class="hidden">
+      <div class="howto-frame">
+        <h2 id="howtoTitle"></h2>
+        <div id="howtoBody"></div>
+        <div class="howto-nav">
+          <button class="btn" id="howtoPrev" onclick="howtoStep(-1)">◀</button>
+          <span id="howtoDots"></span>
+          <button class="btn" id="howtoNext" onclick="howtoStep(1)">▶</button>
+        </div>
+        <button class="btn primary" onclick="closeHowto()">Close</button>
+      </div>
+    </div>
+
+    <div id="logDrawer" class="hidden">
+      <h3><span class="pixel-title" data-scale="2">Chronicle</span></h3>
+      <div id="log" class="log-panel"></div>
+      <button class="btn" onclick="toggleLogDrawer()">Close</button>
+    </div>
+
+    <div id="pauseMenu" class="modal-backdrop hidden">
+      <div class="modal">
+        <h2 class="pixel-title" data-scale="3">Paused</h2>
+        <div class="pause-buttons">
+          <button class="btn primary" onclick="togglePause(false)">▶ Resume</button>
+          <button class="btn muteBtn" onclick="toggleSound()">🔊 Sound on</button>
+          <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+          <button class="btn" onclick="toggleLogDrawer(); togglePause(false)">📜 Chronicle</button>
+          <button class="btn" onclick="openHowto(true)">📖 How to Play</button>
+          <button class="btn" onclick="backToSetup()">🔄 Abandon war</button>
+        </div>
       </div>
     </div>
   </main>
 
-  <footer>Kartenburg — a browser war game playable with a regular deck, pen and paper.</footer>
+  <div id="actionModal" class="modal-backdrop hidden">
+    <div class="modal action-modal">
+      <h2 id="amTitle"></h2>
+      <div id="amBody"></div>
+    </div>
+  </div>
+
+  <div id="handoff" class="modal-backdrop hidden">
+    <div class="modal">
+      <p id="handoffText"></p>
+      <button class="btn primary big" onclick="revealTurn()">Begin turn</button>
+    </div>
+  </div>
+
+  <div id="endModal" class="modal-backdrop hidden">
+    <div class="modal">
+      <h2 class="pixel-title wave" data-scale="3">The War Ends</h2>
+      <p id="endVerdict" class="verdict"></p>
+      <table id="endTable"></table>
+      <div style="display:flex;gap:0.8rem;justify-content:center;flex-wrap:wrap">
+        <button class="btn primary" onclick="hideEndModal(); newGame(ui.numHumans)">⚔️ Rematch</button>
+        <button class="btn" onclick="backToSetup()">Main menu</button>
+        <button class="btn" onclick="hideEndModal()">Inspect the field</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="fx"></div>
+
+  <div id="toast"></div>
+
   <script src="js/swirl.js"></script>
   <script src="js/pixeltext.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/ui.js"></script>
 </body>
 </html>

@@ -959,3 +959,101 @@ body.playing main { max-width: none; padding: 0; height: 100vh; height: 100dvh; 
   .fx-banner span.banner-inner .px-word img { height: 15px; width: auto; }
   .fx-banner .banner-inner { padding: 0.45rem 1.6rem; gap: 0.5rem; }
 }
+
+
+/* ── The app: index is the fullscreen game ──────────────────── */
+body.app { overflow: hidden; height: 100vh; height: 100dvh; }
+body.app main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
+
+#titleScreen {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  cursor: pointer;
+  text-align: center;
+  padding: 1rem;
+}
+.title-stack { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
+.title-stack h1 { display: flex; margin: 0; }
+.title-stack h1 .px-word { filter: drop-shadow(0 5px 0 rgba(0, 0, 0, 0.6)); }
+#titleScreen .suits { font-size: 2rem; letter-spacing: 0.4em; margin: 0; }
+#titleScreen .suits .red { color: #e05555; }
+#titleScreen .tagline { color: var(--muted); font-style: italic; margin: 0; }
+.press-start { margin: 2.2rem 0 0; animation: pressBlink 1.4s steps(2) infinite; }
+@keyframes pressBlink { 50% { opacity: 0.15; } }
+.title-foot { color: #555c69; font-size: 0.8rem; position: absolute; bottom: 1.2rem; }
+
+#setup {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+#setup.hidden { display: none; }
+#setup h2 { display: flex; margin: 0 0 0.8rem; }
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: min(340px, 88vw);
+  margin-top: 1rem;
+}
+.menu-list .btn { width: 100%; }
+.menu-divider { height: 2px; background: var(--line); margin: 0.5rem 0; }
+
+/* How to Play: a fullscreen in-game scene */
+#howto {
+  position: fixed;
+  inset: 0;
+  z-index: 51;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 13, 17, 0.92);
+  padding: 1rem;
+}
+#howto.hidden { display: none; }
+.howto-frame {
+  width: min(620px, 96vw);
+  max-height: 94vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 3px solid var(--gold-dim);
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  text-align: center;
+}
+.howto-frame h2 { display: flex; justify-content: center; margin: 0; min-height: 15px; }
+#howtoBody { line-height: 1.55; font-size: 0.95rem; }
+#howtoBody p { margin: 0.55rem 0; }
+#howtoBody b { color: var(--gold); }
+.ht-row { display: flex; gap: 0.9rem; justify-content: center; align-items: flex-end; flex-wrap: wrap; margin: 0.6rem 0; }
+.ht-row.ht-center { align-items: center; }
+.ht-card { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.ht-side { flex: 1; min-width: 200px; text-align: left; }
+.ht-citadel {
+  display: flex;
+  gap: 2px;
+  position: relative;
+  border: 3px solid var(--gold);
+  padding: 10px 12px 6px;
+  box-shadow: 0 0 18px rgba(212, 167, 44, 0.4);
+}
+.ht-citadel .crown { position: absolute; top: -14px; right: -6px; font-size: 1.2rem; }
+.ht-actions { display: flex; flex-direction: column; gap: 0.6rem; text-align: left; font-size: 0.9rem; line-height: 1.5; }
+.ht-actions > div { border: 2px solid var(--line); padding: 0.55rem 0.8rem; background: #171b23; box-shadow: 3px 3px 0 rgba(0,0,0,0.35); }
+.ht-vs { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+.ht-vs-label { font-weight: bold; color: var(--gold); padding: 0 0.6rem; font-size: 1.05rem; }
+.howto-nav { display: flex; align-items: center; justify-content: center; gap: 0.9rem; }
+.ht-dot { display: inline-block; width: 9px; height: 9px; background: var(--line); margin: 0 3px; }
+.ht-dot.on { background: var(--gold); }
