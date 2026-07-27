@@ -46,6 +46,7 @@ function newGame(numHumans) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   game = createGame(numHumans);
+  sfx.startMusic();
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('gameArea').classList.remove('hidden');
   document.getElementById('endModal').classList.add('hidden');
@@ -57,6 +58,7 @@ function newGame(numHumans) {
 function backToSetup() {
   clearTimeout(ui.npcTimer);
   ui.npcTimer = null;
+  sfx.stopMusic();
   game = null;
   document.getElementById('endModal').classList.add('hidden');
   document.getElementById('gameArea').classList.add('hidden');
@@ -289,9 +291,98 @@ function showBanner(text, tint) {
 
 const COURT_EMBLEM = { J: '🗡️', Q: '🚩', K: '👑' };
 
+/* ── Pixel mode: cards drawn on tiny canvases, upscaled nearest-neighbor ── */
+
+let pixelMode = false;
+try { pixelMode = localStorage.getItem('kartenburg-pixel') === '1'; } catch (e) { }
+
+const spriteCache = new Map();
+
+/* Draw a card face (or back, card=null) at half resolution and return a data
+ * URL; the <img> upscales it with image-rendering: pixelated. */
+function cardSprite(card, w, h) {
+  const key = (card ? card.id : 'back') + '@' + w;
+  if (spriteCache.has(key)) return spriteCache.get(key);
+  const lw = Math.max(12, Math.round(w / 2));
+  const lh = Math.max(16, Math.round(h / 2));
+  const cv = document.createElement('canvas');
+  cv.width = lw;
+  cv.height = lh;
+  const ctx = cv.getContext('2d');
+  if (!card) {
+    ctx.fillStyle = '#5d2020';
+    ctx.fillRect(0, 0, lw, lh);
+    ctx.strokeStyle = '#2e0f0f';
+    ctx.strokeRect(0.5, 0.5, lw - 1, lh - 1);
+    ctx.strokeStyle = '#7b2f2f';
+    for (let i = -lh; i < lw; i += 4) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + lh, lh); ctx.stroke();
+    }
+    ctx.fillStyle = '#e8c76a';
+    ctx.fillRect(Math.floor(lw / 2) - 1, Math.floor(lh / 2) - 1, 3, 3);
+  } else {
+    const meta = SUIT_META[card.suit];
+    const ink = meta.color === 'red' ? '#c22b2b' : '#23252c';
+    ctx.fillStyle = '#f4ecd8';
+    ctx.fillRect(0, 0, lw, lh);
+    ctx.strokeStyle = '#3b3b46';
+    ctx.strokeRect(0.5, 0.5, lw - 1, lh - 1);
+    ctx.fillStyle = ink;
+    ctx.textBaseline = 'top';
+    const big = lw >= 28;
+    if (big) {
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(card.rank, 2, 2);
+      ctx.font = '7px monospace';
+      ctx.fillText(meta.symbol, 2, 10);
+      ctx.save();
+      ctx.translate(lw - 2, lh - 2);
+      ctx.rotate(Math.PI);
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText(card.rank, 0, 0);
+      ctx.font = '7px monospace';
+      ctx.fillText(meta.symbol, 0, 8);
+      ctx.restore();
+      ctx.textAlign = 'center';
+      ctx.font = (COURT_EMBLEM[card.rank] ? '13px' : '14px') + ' monospace';
+      ctx.fillText(COURT_EMBLEM[card.rank] || meta.symbol, lw / 2, lh / 2 - 7);
+    } else {
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 9px monospace';
+      ctx.fillText(card.rank, lw / 2, 2);
+      ctx.font = '9px monospace';
+      ctx.fillText(meta.symbol, lw / 2, lh / 2);
+    }
+  }
+  const url = cv.toDataURL();
+  spriteCache.set(key, url);
+  return url;
+}
+
+function togglePixel() {
+  pixelMode = !pixelMode;
+  try { localStorage.setItem('kartenburg-pixel', pixelMode ? '1' : '0'); } catch (e) { }
+  document.body.classList.toggle('pixel-mode', pixelMode);
+  updatePixelBtns();
+  if (game) render();
+}
+
+function updatePixelBtns() {
+  document.querySelectorAll('.pixelBtn').forEach(b => {
+    b.textContent = '🕹️ Pixel mode: ' + (pixelMode ? 'on' : 'off');
+  });
+}
+
 function pcardHTML(card, cls, onclick) {
   const meta = SUIT_META[card.suit];
   const mini = cls && cls.indexOf('mini') !== -1;
+  if (pixelMode) {
+    const w = mini ? 42 : 64;
+    const h = mini ? 58 : 90;
+    return '<img class="pcard pix ' + meta.color + (cls ? ' ' + cls : '') + '" src="' +
+      cardSprite(card, w, h) + '" width="' + w + '" height="' + h + '" alt="' + cardLabel(card) + '"' +
+      (onclick ? ' onclick="' + onclick + '"' : '') + ' draggable="false">';
+  }
   if (mini) {
     return '<div class="pcard ' + meta.color + (cls ? ' ' + cls : '') + '"' +
       (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
@@ -615,9 +706,38 @@ function showEndModal() {
   document.getElementById('endTable').innerHTML =
     '<tr><th>Army</th><th>Controller</th><th>Glory</th></tr>' +
     rows.map(s => '<tr' + (game.winners.indexOf(s) !== -1 ? ' class="winner-row"' : '') + '><td>' + armyName(s) + '</td><td>' +
-      (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td>' +
-      game.armies[s].glory + '</td></tr>').join('');
+      (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td class="glory-count" data-v="' +
+      game.armies[s].glory + '">0</td></tr>').join('');
   document.getElementById('endModal').classList.remove('hidden');
+
+  // Balatro-style scoring: each row counts up with ticks, winner shines last.
+  const cells = document.querySelectorAll('#endTable .glory-count');
+  let lastEnd = 0;
+  cells.forEach((td, i) => {
+    const target = +td.dataset.v;
+    const begin = performance.now() + 380 + i * 300;
+    lastEnd = Math.max(lastEnd, 380 + i * 300 + 700);
+    let shown = 0;
+    function step(now) {
+      if (now < begin) return requestAnimationFrame(step);
+      const p = Math.min(1, (now - begin) / 650);
+      const v = Math.round(target * (1 - Math.pow(1 - p, 3)));
+      if (v !== shown) {
+        shown = v;
+        td.textContent = v;
+        td.classList.remove('bump');
+        void td.offsetWidth;
+        td.classList.add('bump');
+        sfx.tick();
+      }
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  });
+  setTimeout(() => {
+    document.querySelectorAll('#endTable .winner-row').forEach(tr => tr.classList.add('winner-reveal'));
+    sfx.fanfare();
+  }, lastEnd + 150);
   for (let i = 0; i < 6; i++) {
     setTimeout(() => {
       const r = { left: Math.random() * window.innerWidth, top: Math.random() * window.innerHeight * 0.6, width: 0, height: 0 };
@@ -678,25 +798,39 @@ function cellSel(zone, suit, idx) {
 }
 
 function cardBackHTML(cls) {
+  if (pixelMode) {
+    return '<img class="pcard pix back' + (cls ? ' ' + cls : '') + '" src="' +
+      cardSprite(null, 64, 90) + '" width="64" height="90" alt="" draggable="false">';
+  }
   return '<div class="pcard back' + (cls ? ' ' + cls : '') + '"></div>';
 }
 
 function flyHTML(html, fromR, toR, ms, cls) {
   if (!fromR || !toR) return;
-  const el = document.createElement('div');
-  el.className = 'fx-fly' + (cls ? ' ' + cls : '');
-  el.style.left = (fromR.left + fromR.width / 2) + 'px';
-  el.style.top = (fromR.top + fromR.height / 2) + 'px';
-  el.style.transform = 'translate(-50%,-50%)';
-  el.innerHTML = html;
-  fxRoot().appendChild(el);
   const dx = (toR.left + toR.width / 2) - (fromR.left + fromR.width / 2);
   const dy = (toR.top + toR.height / 2) - (fromR.top + fromR.height / 2);
-  requestAnimationFrame(() => {
-    el.style.transition = 'transform ' + ms + 'ms cubic-bezier(.45,-0.25,.4,1.25)';
-    el.style.transform = 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px)';
-  });
-  setTimeout(() => el.remove(), ms + 140);
+  const spawn = (delay, opacity, ghost) => {
+    setTimeout(() => {
+      const el = document.createElement('div');
+      el.className = 'fx-fly' + (cls ? ' ' + cls : '') + (ghost ? ' fx-ghost' : '');
+      el.style.left = (fromR.left + fromR.width / 2) + 'px';
+      el.style.top = (fromR.top + fromR.height / 2) + 'px';
+      el.style.transform = 'translate(-50%,-50%)';
+      el.style.opacity = opacity;
+      el.innerHTML = html;
+      fxRoot().appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform ' + ms + 'ms cubic-bezier(.45,-0.25,.4,1.25)' +
+          (ghost ? ', opacity ' + ms + 'ms linear' : '');
+        el.style.transform = 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px)';
+        if (ghost) el.style.opacity = '0';
+      });
+      setTimeout(() => el.remove(), ms + 140);
+    }, delay);
+  };
+  spawn(0, '1', false);      // the card
+  spawn(45, '0.30', true);   // trailing ghosts
+  spawn(90, '0.15', true);
 }
 
 function floatText(text, r, cls) {
@@ -745,6 +879,11 @@ function sparks(r, colors, n) {
     fxRoot().appendChild(el);
     setTimeout(() => el.remove(), 700);
   }
+}
+
+function hitstop(ms) {
+  document.body.classList.add('hitstop');
+  setTimeout(() => document.body.classList.remove('hitstop'), ms);
 }
 
 function popSel(sel) {
@@ -848,10 +987,15 @@ function runFx(ev) {
     }
     case 'capture': {
       const r = rectOf(cellSel('citadel'));
-      popSel(cellSel('citadel'));
-      sparks(r, GOLD_SPARKS, 26);
-      floatText('+' + GLORY.capture + ' 🏅 KARTENBURG FALLS!', r, 'gold big');
-      sfx.fanfare();
+      flashAt(r);
+      hitstop(95); // Vlambeer freeze-frame before the payoff
+      setTimeout(() => {
+        popSel(cellSel('citadel'));
+        shake('lg');
+        sparks(r, GOLD_SPARKS, 26);
+        floatText('+' + GLORY.capture + ' 🏅 KARTENBURG FALLS!', r, 'gold big');
+        sfx.fanfare();
+      }, 100);
       break;
     }
     case 'raid': {
@@ -946,13 +1090,40 @@ const sfx = (() => {
     src.start();
   }
 
+  // Generative ambience: a slow minor-pentatonic music box over a soft drone.
+  let musicTimer = null;
+  let beat = 0;
+  const SCALE = [220, 261.63, 293.66, 329.63, 392, 440];
+  function musicNote() {
+    if (muted) return;
+    const c = ac();
+    if (!c) return;
+    beat++;
+    if (beat % 4 === 1) tone(SCALE[0] / 2, 2.4, 'sine', 0.028);
+    if (Math.random() < 0.85) {
+      const n = SCALE[Math.floor(Math.random() * SCALE.length)];
+      tone(n, 1.6, 'triangle', 0.022, Math.random() * 0.3);
+      if (Math.random() < 0.3) tone(n * 1.5, 1.4, 'triangle', 0.014, 0.45);
+    }
+  }
+
   return {
     toggle() {
       muted = !muted;
       try { localStorage.setItem('kartenburg-muted', muted ? '1' : '0'); } catch (e) { }
+      if (muted) this.stopMusic(); else if (typeof game !== 'undefined' && game) this.startMusic();
       return muted;
     },
     isMuted() { return muted; },
+    startMusic() {
+      if (musicTimer || muted) return;
+      musicNote();
+      musicTimer = setInterval(musicNote, 1150);
+    },
+    stopMusic() {
+      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+    },
+    tick() { tone(980, 0.03, 'square', 0.028); },
     draw() { tone(620, 0.07, 'triangle', 0.05); },
     flip() { tone(440, 0.05, 'triangle', 0.05); tone(660, 0.06, 'triangle', 0.04, 0.05); },
     place() { tone(200, 0.07, 'square', 0.06); tone(300, 0.06, 'square', 0.045, 0.04); },
@@ -973,4 +1144,6 @@ function toggleSound() {
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('muteBtn');
   if (btn) btn.textContent = sfx.isMuted() ? '🔇 Sound off' : '🔊 Sound on';
+  document.body.classList.toggle('pixel-mode', pixelMode);
+  updatePixelBtns();
 });
