@@ -696,8 +696,15 @@ img.pcard.pix {
 }
 img.pcard.pix.supply { filter: saturate(0.55) brightness(0.88); }
 img.pcard.pix.selected { outline: 3px solid var(--gold); }
-.stack img.pcard.pix { width: 30px; height: 42px; }
-.camp-stack img.pcard.pix { width: 24px; height: 34px; }
+/* Integer upscales only: sprites are 32x44 / 16x22, shown at exact 1x or 2x */
+img.pcard.pix { width: 64px; height: 88px; }
+img.pcard.pix.mini { width: 32px; height: 44px; }
+.stack img.pcard.pix { width: 32px; height: 44px; margin-left: -15px; }
+.stack img.pcard.pix:first-child { margin-left: 0; }
+.camp-stack img.pcard.pix { width: 16px; height: 22px; }
+body.pixel-mode .cell.pile .pile-stack { height: 88px; }
+body.pixel-mode .cell.pile .pile-stack .pcard { inset: auto; left: 0; top: 0; }
+body.pixel-mode .fx-flip3d { width: 64px; height: 88px; }
 body.pixel-mode .pcard,
 body.pixel-mode .btn,
 body.pixel-mode .panel,
@@ -727,3 +734,13 @@ body.pixel-mode .swirl-canvas { opacity: 0.65; }
 body.pixel-mode #fx .fx-fly { filter: none; }
 body.pixel-mode .cell.citadel,
 body.pixel-mode .cell.camp { border-width: 3px; }
+
+
+/* Drawn cards stay invisible until their flight from the deck lands */
+.hand-slot.deal-hide { visibility: hidden; }
+.hand-slot.deal-pop .pcard { animation: dealLand 0.4s cubic-bezier(0.3, 1.6, 0.6, 1); }
+@keyframes dealLand {
+  0% { transform: scale(0.55) rotate(-7deg); opacity: 0.3; }
+  60% { transform: scale(1.12) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
