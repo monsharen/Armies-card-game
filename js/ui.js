@@ -48,6 +48,7 @@ function newGame(numHumans) {
   document.getElementById('gameArea').classList.remove('hidden');
   document.getElementById('endModal').classList.add('hidden');
   render();
+  playFx(game.events.splice(0));
   maybeScheduleNpc();
 }
 
@@ -574,6 +575,7 @@ let fxUntil = 0;
 const FX_DUR = {
   draw: 420, flip: 950, deploy: 480, march: 520, assault: 700, capture: 700,
   raid: 750, tribute: 420, supply: 380, toss: 320, season: 950,
+  deal: 780, garrison: 1550,
 };
 
 function playFx(events) {
@@ -679,6 +681,24 @@ function popSel(sel) {
   setTimeout(() => el.classList.remove('fx-pop'), 400);
 }
 
+function revealFromDeck(card, destSel, holdMs, onLand) {
+  const deckR = rectOf('#deckPile');
+  if (!deckR) return;
+  const rev = document.createElement('div');
+  rev.className = 'fx-reveal';
+  rev.style.left = (deckR.left + deckR.width / 2) + 'px';
+  rev.style.top = (deckR.top + deckR.height / 2) + 'px';
+  rev.innerHTML = '<div class="fx-flip3d"><div class="face back">' + cardBackHTML() +
+    '</div><div class="face front">' + pcardHTML(card) + '</div></div>';
+  fxRoot().appendChild(rev);
+  sfx.flip();
+  setTimeout(() => {
+    flyHTML(pcardHTML(card, 'mini'), rev.getBoundingClientRect(), rectOf(destSel), 360);
+    rev.remove();
+    if (onLand) setTimeout(onLand, 360);
+  }, holdMs || 620);
+}
+
 const GOLD_SPARKS = ['#d4a72c', '#f0cd6b', '#fff3c4'];
 const BLOOD_SPARKS = ['#d06050', '#8a2f24', '#f0a08c'];
 
@@ -694,22 +714,34 @@ function runFx(ev) {
       break;
     }
     case 'flip': {
-      if (!deckR) break;
-      const rev = document.createElement('div');
-      rev.className = 'fx-reveal';
-      rev.style.left = (deckR.left + deckR.width / 2) + 'px';
-      rev.style.top = (deckR.top + deckR.height / 2) + 'px';
-      rev.innerHTML = '<div class="fx-flip3d"><div class="face back">' + cardBackHTML() +
-        '</div><div class="face front">' + pcardHTML(ev.card) + '</div></div>';
-      fxRoot().appendChild(rev);
-      sfx.flip();
-      setTimeout(() => {
-        const destSel = (ev.action === 'muster' || ev.action === 'post')
-          ? cellSel('camp', ev.suit) : '#discardPile';
-        flyHTML(pcardHTML(ev.card, 'mini'), rev.getBoundingClientRect(), rectOf(destSel), 360);
-        rev.remove();
+      const destSel = (ev.action === 'muster' || ev.action === 'post')
+        ? cellSel('camp', ev.suit) : '#discardPile';
+      revealFromDeck(ev.card, destSel, 620, () => {
         if (destSel !== '#discardPile') { popSel(destSel); sfx.place(); } else sfx.whoosh();
-      }, 620);
+      });
+      break;
+    }
+    case 'deal': {
+      // Opening hands: card backs stream from the deck to the shown hand, or
+      // to that player's camp corner when their hand is hidden (hot-seat).
+      const shown = currentArmy(game).isHuman && currentArmy(game).suit === ev.suit;
+      const destR = shown ? handR : rectOf(cellSel('camp', ev.suit));
+      for (let i = 0; i < ev.count; i++) {
+        setTimeout(() => { flyHTML(cardBackHTML(), deckR, destR, 380); sfx.draw(); }, i * 130);
+      }
+      break;
+    }
+    case 'garrison': {
+      // The mercenaries take the city: flip each card off the deck onto it.
+      ev.cards.forEach((card, i) => {
+        setTimeout(() => {
+          revealFromDeck(card, cellSel('citadel'), 520, i === ev.cards.length - 1 ? () => {
+            popSel(cellSel('citadel'));
+            sparks(rectOf(cellSel('citadel')), GOLD_SPARKS, 12);
+            sfx.place();
+          } : null);
+        }, i * 700);
+      });
       break;
     }
     case 'deploy': {
