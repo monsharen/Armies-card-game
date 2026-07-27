@@ -77,9 +77,11 @@ function createGame(numHumans) {
   }
   for (const suit of humans) {
     for (let i = 0; i < 4; i++) state.armies[suit].hand.push(state.deck.pop());
+    pushEvent(state, { type: 'deal', suit, count: 4 });
   }
   const g = [state.deck.pop(), state.deck.pop()];
   state.garrison = { cards: g, owner: null };
+  pushEvent(state, { type: 'garrison', cards: g.slice() });
   addLog(state, 'system', 'The war for Kartenburg begins. Mercenaries hold it: ' +
     stackLabel(g) + ' (strength ' + stackSum(g) + '). Kartenburg pays its holder ' +
     GLORY.tribute + ' glory at the start of each of their turns.');
