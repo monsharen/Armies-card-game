@@ -392,7 +392,7 @@ function deployCard(state, handIdx, target) {
     army.camp.push({ cards: [card] });
     addLog(state, 'player', armyName(army.suit) + ' musters a new army: ' + cardLabel(card) +
       ' (strength ' + strength(card) + ').');
-    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'camp' });
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'new' });
   } else {
     if (target.zone !== 'camp') {
       return { ok: false, msg: 'Armies can only be reinforced in camp — once they march out, their roster is fixed.' };
@@ -486,10 +486,12 @@ function npcReinforce(state, army, card) {
     target.cards.push(card);
     addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
       ' — reinforces a camp army: now ' + stackLabel(target.cards) + ' (strength ' + stackSum(target.cards) + ').');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'camp', npc: true });
   } else {
     army.camp.push({ cards: [card] });
     addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
       ' — musters a new army (strength ' + strength(card) + ').');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'new', npc: true });
   }
 }
 

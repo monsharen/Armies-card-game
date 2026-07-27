@@ -619,16 +619,7 @@ body { background-color: #14161d; }
   z-index: 48;
   pointer-events: none;
 }
-.fx-banner span {
-  font-size: 1.5rem;
-  font-weight: bold;
-  letter-spacing: 0.14em;
-  color: #fff;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tint) 82%, #000) 18%, color-mix(in srgb, var(--tint) 82%, #000) 82%, transparent);
-  padding: 0.55rem 4.5rem;
-  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6);
-  animation: bannerSweep 1.55s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
-}
+.fx-banner > .banner-inner { color: #fff; }
 @keyframes bannerSweep {
   0% { transform: translateX(-120vw) skewX(-8deg); }
   22% { transform: translateX(0) skewX(0); }
@@ -766,47 +757,140 @@ body.pixel-mode .cell.camp { border-width: 3px; }
 .panel h3 .px-word { transform: translateY(1px); }
 nav .brand .px-word { transform: translateY(2px); }
 
-/* ── Chronicle splashes: the log plays out on screen ────────── */
-#splashFeed {
-  position: fixed;
-  top: 64px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  z-index: 43;
-  pointer-events: none;
-  width: min(680px, 92vw);
-}
-.splash {
-  background: rgba(14, 17, 22, 0.92);
-  border: 2px solid var(--line);
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.45);
-  padding: 0.45rem 0.9rem;
-  font-size: 0.88rem;
-  line-height: 1.35;
-  color: var(--text);
-  text-align: center;
-  animation: splashIn 0.28s cubic-bezier(0.3, 1.5, 0.6, 1);
-  max-width: 100%;
-}
-.splash.out { animation: splashOut 0.45s ease-in forwards; }
-.splash-battle { border-color: var(--danger); color: #ffb3a6; }
-.splash-system { border-color: var(--gold-dim); color: var(--gold); }
-.splash-npc { border-color: #3d5a8c; color: #a9c0e8; }
-.splash-player { border-color: #4a6b45; }
-@keyframes splashIn {
-  from { opacity: 0; transform: translateY(-14px) scale(0.92); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes splashOut {
-  to { opacity: 0; transform: translateY(-10px); }
-}
-
 /* Always-pixel odds and ends */
 body.pixel-mode nav { border-bottom-width: 3px; }
 body.pixel-mode .btn { text-transform: uppercase; letter-spacing: 0.06em; font-size: 0.85rem; }
 body.pixel-mode .prose .tip, body.pixel-mode .hero .intro, body.pixel-mode .feature { border-radius: 0; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.35); }
 body.pixel-mode .prose th, body.pixel-mode .prose td { border-width: 2px; }
+
+
+/* ── Console layout: fullscreen play, contextual UI only ────── */
+body.playing { overflow: hidden; }
+body.playing nav, body.playing footer { display: none; }
+body.playing main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
+#gameArea {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+#gameArea.hidden { display: none; }
+
+#hud {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.45rem 1rem;
+  background: #12151b;
+  border-bottom: 3px solid var(--gold-dim);
+  flex-shrink: 0;
+}
+.hud-brand { opacity: 0.9; }
+#hudScore { display: flex; gap: 0.55rem; flex: 1; justify-content: center; }
+.hud-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 2px solid var(--tint);
+  background: #171b23;
+  font-weight: bold;
+  font-size: 0.95rem;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.4);
+}
+.hud-chip b { color: var(--tint); font-size: 1.1rem; }
+.hud-chip.current { background: color-mix(in srgb, var(--tint) 26%, #171b23); outline: 2px solid #fff2; }
+.hud-right { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.8rem; }
+.btn.slim { padding: 0.25rem 0.6rem; font-size: 0.95rem; }
+
+.board-viewport {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.board-scale { transform-origin: center center; }
+
+#bottomBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 1.2rem;
+  padding: 0.4rem 1.2rem 0.75rem;
+  background: rgba(14, 17, 22, 0.88);
+  border-top: 3px solid var(--line);
+  min-height: 150px;
+}
+#bottomBar #handArea { flex: 1; margin-top: 0; display: flex; align-items: flex-end; gap: 1.4rem; }
+#bottomBar #handArea .camp-strip { margin-bottom: 0; }
+#bottomBar #turnPanel {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-end;
+  text-align: right;
+}
+#bottomBar #turnPanel .prompt { color: var(--gold); font-size: 0.85rem; margin: 0; line-height: 1.4; }
+#handArea > div:first-child { flex-shrink: 0; }
+#handArea h3 { margin-bottom: 0.35rem; }
+
+/* Chronicle drawer: history on demand */
+#logDrawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(400px, 90vw);
+  background: rgba(14, 17, 22, 0.97);
+  border-left: 3px solid var(--gold-dim);
+  padding: 1rem 1.2rem;
+  z-index: 49;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  animation: drawerIn 0.22s ease-out;
+}
+#logDrawer .log-panel { flex: 1; max-height: none; }
+#logDrawer.hidden { display: none; }
+@keyframes drawerIn { from { transform: translateX(40px); opacity: 0; } }
+
+.pause-buttons { display: flex; flex-direction: column; gap: 0.55rem; margin-top: 1rem; }
+
+/* ── Themed action banners (the YOUR TURN style, per action) ── */
+.fx-banner .banner-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--tint) 80%, #000) 14%, color-mix(in srgb, var(--tint) 80%, #000) 86%, transparent);
+  padding: 0.6rem 3.6rem;
+  animation: bannerSweep 1.45s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+.fx-banner.big .banner-inner { padding: 0.8rem 4.2rem; animation-duration: 1.7s; }
+.fx-banner .b-icon { font-size: 1.4rem; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.5)); }
+.fx-banner span.banner-inner .px-word { filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6)); }
+.fx-banner.slash { --tint: #a3271b; }
+.fx-banner.slash .banner-inner { animation-delay: 0.12s; opacity: 0; animation-fill-mode: forwards; }
+.slash-line {
+  position: fixed;
+  left: -25%;
+  top: 48%;
+  width: 150%;
+  height: 5px;
+  background: linear-gradient(90deg, transparent 0%, #fff 30%, #ff7a5f 60%, transparent 100%);
+  box-shadow: 0 0 22px rgba(255, 90, 60, 0.85), 0 0 60px rgba(255, 60, 30, 0.5);
+  transform: rotate(-13deg) scaleX(0);
+  transform-origin: left center;
+  animation: slashCut 0.5s ease-out forwards;
+}
+@keyframes slashCut {
+  35% { transform: rotate(-13deg) scaleX(1); opacity: 1; }
+  100% { transform: rotate(-13deg) scaleX(1) translateX(8%); opacity: 0; }
+}
+
+
+.hand-block { display: flex; flex-direction: column; }
+#bottomBar .hand-cards { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
