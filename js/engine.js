@@ -61,6 +61,7 @@ function createGame(numHumans) {
     over: false,
     winners: null,
     log: [],
+    events: [],  // animation/FX events for the UI; harmless to ignore headless
   };
   for (const suit of SUITS) {
     state.armies[suit] = {
@@ -88,6 +89,10 @@ function createGame(numHumans) {
 
 function addLog(state, kind, msg) {
   state.log.push({ kind, msg, season: state.season });
+}
+
+function pushEvent(state, ev) {
+  state.events.push(ev);
 }
 
 function currentArmy(state) {
@@ -148,6 +153,7 @@ function endSeason(state) {
   state.discard = [];
   addLog(state, 'system', '🌱 Season ' + state.season + ' begins — the fallen return to the deck (' +
     state.deck.length + ' cards).');
+  pushEvent(state, { type: 'season', season: state.season });
   if (!state.deck.length) finishGame(state);
 }
 
@@ -169,6 +175,7 @@ function beginTurn(state) {
     army.glory += GLORY.tribute;
     addLog(state, 'system', '👑 ' + armyName(army.suit) + ' collects Kartenburg tribute: +' +
       GLORY.tribute + ' glory.');
+    pushEvent(state, { type: 'tribute', suit: army.suit });
   }
   if (army.isHuman) {
     let drawn = 0;
@@ -179,6 +186,7 @@ function beginTurn(state) {
       drawn++;
     }
     state.pendingDiscard = Math.max(0, army.hand.length - HAND_LIMIT);
+    if (drawn) pushEvent(state, { type: 'draw', suit: army.suit, count: drawn });
     if (state.over) return;
     addLog(state, 'turn', '— ' + armyName(army.suit) + ' takes the field (draws ' + drawn + ').' +
       (state.pendingDiscard ? ' Hand over ' + HAND_LIMIT + ' — must discard ' + state.pendingDiscard + '.' : ''));
@@ -225,11 +233,13 @@ function resolveAssault(state, suit, stack) {
   const attStr = effStrength(state, suit, stack.cards);
   const defStr = effStrength(state, g.owner, g.cards);
   const defName = g.owner ? armyName(g.owner) : 'the mercenaries';
+  pushEvent(state, { type: 'assault', suit, won: attStr > defStr, attStr, defStr });
   if (attStr > defStr) {
     for (const c of g.cards) state.discard.push(c);
     const fallen = takeCasualties(state, stack.cards);
     state.garrison = { cards: stack.cards, owner: suit };
     state.armies[suit].glory += GLORY.capture;
+    pushEvent(state, { type: 'capture', suit });
     addLog(state, 'battle', '🏰 ' + armyName(suit) + '\'s army ' + stackLabel(stack.cards) +
       ' (' + attStr + ') storms Kartenburg, destroying ' + defName + ' (' + defStr + ')! +' +
       GLORY.capture + ' glory.' + (fallen ? ' Casualties: ' + cardLabel(fallen) + '.' : ''));
@@ -253,6 +263,7 @@ function resolveRaid(state, attackerSuit, jack, targetSuit, roadIdx) {
   const target = stack.cards[wIdx];
   const attStr = strength(jack) + qBonus(att);
   const defStr = strength(target) + qBonus(def);
+  pushEvent(state, { type: 'raid', attacker: attackerSuit, targetSuit, roadIdx, won: attStr > defStr, jack });
   if (attStr > defStr) {
     stack.cards.splice(wIdx, 1);
     state.discard.push(target);
@@ -307,6 +318,8 @@ function stackAt(army, from) {
 function executePlan(state, suit, plan) {
   const army = state.armies[suit];
   const stack = stackAt(army, plan.from);
+  pushEvent(state, { type: 'march', suit, from: plan.from, dest: plan.dest, kind: plan.kind,
+    cards: stack.cards.slice() });
   if (plan.from.zone === 'camp') army.camp.splice(plan.from.idx, 1);
   else army.road[plan.from.idx] = null;
   if (plan.kind === 'assault') {
@@ -347,6 +360,7 @@ function discardFromHand(state, handIdx) {
   army.hand.splice(handIdx, 1);
   state.discard.push(card);
   state.pendingDiscard--;
+  pushEvent(state, { type: 'toss', suit: army.suit, card });
   addLog(state, 'player', armyName(army.suit) + ' discards ' + cardLabel(card) + '.');
   return { ok: true };
 }
@@ -366,14 +380,17 @@ function deployCard(state, handIdx, target) {
     if (army.posts.queen) return { ok: false, msg: 'Your Banner is already raised.' };
     army.posts.queen = card;
     addLog(state, 'player', armyName(army.suit) + ' raises the Banner (Q): all their armies now fight at +2.');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'post' });
   } else if (card.rank === 'K') {
     if (army.posts.king) return { ok: false, msg: 'Your General is already in camp.' };
     army.posts.king = card;
     addLog(state, 'player', armyName(army.suit) + '\'s General (K) takes command: marches cost 1 less supply.');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'post' });
   } else if (!target || target.zone === 'newcamp') {
     army.camp.push({ cards: [card] });
     addLog(state, 'player', armyName(army.suit) + ' musters a new army: ' + cardLabel(card) +
       ' (strength ' + strength(card) + ').');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'camp' });
   } else {
     if (target.zone !== 'camp') {
       return { ok: false, msg: 'Armies can only be reinforced in camp — once they march out, their roster is fixed.' };
@@ -384,6 +401,7 @@ function deployCard(state, handIdx, target) {
     stack.cards.push(card);
     addLog(state, 'player', armyName(army.suit) + ' reinforces a camp army: now ' +
       stackLabel(stack.cards) + ' (strength ' + stackSum(stack.cards) + ').');
+    pushEvent(state, { type: 'deploy', suit: army.suit, card, target: 'camp' });
   }
   army.hand.splice(handIdx, 1);
   spendAction(state);
@@ -407,6 +425,7 @@ function march(state, from) {
     state.discard.push(army.hand.splice(supplies[i], 1)[0]);
   }
   addLog(state, 'player', armyName(army.suit) + ' spends ' + plan.cost + ' supply.');
+  pushEvent(state, { type: 'supply', suit: army.suit, count: plan.cost });
   executePlan(state, army.suit, plan);
   spendAction(state);
   return { ok: true };
@@ -482,22 +501,27 @@ function npcFlip(state) {
 
   if (card.suit === army.suit) {
     if (card.rank === 'Q' && !army.posts.queen) {
+      pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'post' });
       army.posts.queen = card;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
         ' — raises its Banner: armies fight at +2.');
     } else if (card.rank === 'K' && !army.posts.king) {
+      pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'post' });
       army.posts.king = card;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
         ' — its General takes command: marches cost 1 less.');
     } else if (card.rank === 'J') {
       const target = npcRaidTarget(state, army.suit);
       if (target) {
+        pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'raid' });
         addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) + ' — raiders ride out!');
         resolveRaid(state, army.suit, card, target.suit, target.idx);
       } else {
+        pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'muster' });
         npcReinforce(state, army, card);
       }
     } else {
+      pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'muster' });
       npcReinforce(state, army, card);
     }
   } else {
@@ -505,11 +529,13 @@ function npcFlip(state) {
     state.discard.push(card);
     const plan = computeMarchPlans(state, army.suit)[0]; // plans are frontmost-first
     if (plan && army.supply >= plan.cost) {
+      pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'supply-march' });
       army.supply -= plan.cost;
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
         ' — supplies complete (' + plan.cost + ' spent), the army marches!');
       executePlan(state, army.suit, plan);
     } else {
+      pushEvent(state, { type: 'flip', suit: army.suit, card, action: 'supply-bank' });
       addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
         ' — banks supply (' + army.supply + (plan ? ' of ' + plan.cost + ' needed' : '') + ').');
     }
