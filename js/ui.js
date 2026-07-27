@@ -43,6 +43,8 @@ function newGame(numHumans) {
   ui.npcTimer = null;
   ui.modal = null;
   ui.revealedSuit = null;
+  ui.bannerSuit = null;
+  ui.glorySeen = null;
   game = createGame(numHumans);
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('gameArea').classList.remove('hidden');
@@ -222,6 +224,33 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && game) cancelModal();
 });
 
+/* Balatro-style 3D tilt: hand cards lean toward the cursor. */
+let tiltSlot = null;
+
+function resetTilt(slot) {
+  const c = slot && slot.querySelector('.pcard');
+  if (!c) return;
+  for (const p of ['--rx', '--ry', '--lift', '--sc']) c.style.removeProperty(p);
+}
+
+document.addEventListener('pointermove', e => {
+  const slot = e.target.closest ? e.target.closest('#handArea .hand-slot') : null;
+  if (tiltSlot && tiltSlot !== slot) resetTilt(tiltSlot);
+  tiltSlot = slot;
+  if (!slot) return;
+  const c = slot.querySelector('.pcard');
+  if (!c) return;
+  const r = c.getBoundingClientRect();
+  const rx = ((r.top + r.height / 2) - e.clientY) / r.height * 24;
+  const ry = (e.clientX - (r.left + r.width / 2)) / r.width * 24;
+  c.style.setProperty('--rx', rx.toFixed(1) + 'deg');
+  c.style.setProperty('--ry', ry.toFixed(1) + 'deg');
+  c.style.setProperty('--lift', '-12px');
+  c.style.setProperty('--sc', '1.12');
+});
+
+document.addEventListener('pointerleave', () => { if (tiltSlot) { resetTilt(tiltSlot); tiltSlot = null; } });
+
 /* ── Rendering ────────────────────────────────────────────────────────── */
 
 function render() {
@@ -232,14 +261,50 @@ function render() {
   renderLog();
   renderHandoff();
   renderActionModal();
+  renderTurnBanner();
 }
+
+function renderTurnBanner() {
+  if (game.over) { ui.bannerSuit = null; return; }
+  const cur = currentArmy(game);
+  if (cur.isHuman && myTurn()) {
+    if (ui.bannerSuit !== cur.suit) {
+      ui.bannerSuit = cur.suit;
+      showBanner(SUIT_META[cur.suit].symbol + '  ' + armyName(cur.suit).toUpperCase() + ' — YOUR TURN', SUIT_META[cur.suit].tint);
+      sfx.draw();
+    }
+  } else if (!cur.isHuman) {
+    ui.bannerSuit = null;
+  }
+}
+
+function showBanner(text, tint) {
+  const el = document.createElement('div');
+  el.className = 'fx-banner';
+  el.style.setProperty('--tint', tint || '#d4a72c');
+  el.innerHTML = '<span>' + text + '</span>';
+  fxRoot().appendChild(el);
+  setTimeout(() => el.remove(), 1600);
+}
+
+const COURT_EMBLEM = { J: '🗡️', Q: '🚩', K: '👑' };
 
 function pcardHTML(card, cls, onclick) {
   const meta = SUIT_META[card.suit];
-  return '<div class="pcard ' + meta.color + (cls ? ' ' + cls : '') + '"' +
+  const mini = cls && cls.indexOf('mini') !== -1;
+  if (mini) {
+    return '<div class="pcard ' + meta.color + (cls ? ' ' + cls : '') + '"' +
+      (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
+      '<span class="pc-rank">' + card.rank + '</span>' +
+      '<span class="pc-suit">' + meta.symbol + '</span></div>';
+  }
+  const emblem = COURT_EMBLEM[card.rank];
+  const idx = '<b>' + card.rank + '</b><i>' + meta.symbol + '</i>';
+  return '<div class="pcard fancy ' + meta.color + (cls ? ' ' + cls : '') + '"' +
     (onclick ? ' onclick="' + onclick + '"' : '') + '>' +
-    '<span class="pc-rank">' + card.rank + '</span>' +
-    '<span class="pc-suit">' + meta.symbol + '</span></div>';
+    '<span class="pc-idx tl">' + idx + '</span>' +
+    '<span class="pc-mid">' + (emblem || meta.symbol) + '</span>' +
+    '<span class="pc-idx br">' + idx + '</span></div>';
 }
 
 function stackHTML(state, ownerSuit, cards) {
@@ -349,7 +414,7 @@ function renderHand() {
     if (!own) classes.push('supply');
     const tag = own ? (card.rank === 'J' ? 'raider' : card.rank === 'Q' ? 'banner' :
       card.rank === 'K' ? 'general' : card.rank === 'A' ? 'champion' : 'soldier') : 'supply';
-    return '<div class="hand-slot"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
+    return '<div class="hand-slot" style="--i:' + i + '"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
       pcardHTML(card, classes.join(' ')) + '<span class="hand-tag">' + tag + '</span></div>';
   }).join('') || '<p class="hint">Empty hand.</p>';
   html += '</div>';
@@ -359,16 +424,20 @@ function renderHand() {
 function renderSidebar() {
   const cur = currentArmy(game);
 
+  const prevGlory = ui.glorySeen || {};
   let rows = '';
   for (const suit of SUITS) {
     const a = game.armies[suit];
+    const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
     rows += '<div class="score-row' + (suit === cur.suit && !game.over ? ' current' : '') + '">' +
       '<span class="dot" style="background:' + SUIT_META[suit].tint + '"></span>' +
       '<span class="score-name">' + armyName(suit) + '</span>' +
       '<span class="score-who">' + (a.isHuman ? playerLabel(suit) : 'Auto') + '</span>' +
-      '<span class="score-glory">' + (game.garrison.owner === suit ? '👑 ' : '') + a.glory + ' 🏅</span>' +
+      '<span class="score-glory' + (bumped ? ' bump' : '') + '">' + (game.garrison.owner === suit ? '👑 ' : '') + a.glory + ' 🏅</span>' +
       '</div>';
   }
+  ui.glorySeen = {};
+  for (const suit of SUITS) ui.glorySeen[suit] = game.armies[suit].glory;
   rows += '<div class="deck-info">Season ' + game.season + ' of ' + SEASONS +
     ' · Deck ' + game.deck.length + ' · Discard ' + game.discard.length + '</div>';
   document.getElementById('scoreboard').innerHTML = rows;
@@ -549,6 +618,12 @@ function showEndModal() {
       (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td>' +
       game.armies[s].glory + '</td></tr>').join('');
   document.getElementById('endModal').classList.remove('hidden');
+  for (let i = 0; i < 6; i++) {
+    setTimeout(() => {
+      const r = { left: Math.random() * window.innerWidth, top: Math.random() * window.innerHeight * 0.6, width: 0, height: 0 };
+      sparks(r, GOLD_SPARKS, 16);
+    }, i * 160);
+  }
 }
 
 function hideEndModal() {
@@ -691,6 +766,7 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
   rev.innerHTML = '<div class="fx-flip3d"><div class="face back">' + cardBackHTML() +
     '</div><div class="face front">' + pcardHTML(card) + '</div></div>';
   fxRoot().appendChild(rev);
+  popSel('#deckPile');
   sfx.flip();
   setTimeout(() => {
     flyHTML(pcardHTML(card, 'mini'), rev.getBoundingClientRect(), rectOf(destSel), 360);
