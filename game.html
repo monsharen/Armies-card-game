@@ -32,34 +32,44 @@
     </div>
 
     <div id="gameArea" class="hidden">
-      <div class="game-layout">
-        <div>
+      <div id="hud">
+        <span class="hud-brand pixel-title" data-scale="2">Kartenburg</span>
+        <div id="hudScore"></div>
+        <div class="hud-right">
+          <span id="hudInfo"></span>
+          <button class="btn slim" onclick="toggleLogDrawer()" title="Chronicle">📜</button>
+          <button class="btn slim" onclick="togglePause(true)" title="Menu">☰</button>
+        </div>
+      </div>
+      <div class="board-viewport">
+        <div class="board-scale">
           <div class="board-wrap">
             <div id="board"></div>
           </div>
-          <div id="handArea"></div>
         </div>
+      </div>
+      <div id="bottomBar">
+        <div id="handArea"></div>
+        <div id="turnPanel"></div>
+      </div>
+    </div>
 
-        <div class="sidebar">
-          <div class="panel">
-            <h3><span class="pixel-title" data-scale="2">Glory</span></h3>
-            <div id="scoreboard"></div>
-          </div>
+    <div id="logDrawer" class="hidden">
+      <h3><span class="pixel-title" data-scale="2">Chronicle</span></h3>
+      <div id="log" class="log-panel"></div>
+      <button class="btn" onclick="toggleLogDrawer()">Close</button>
+    </div>
 
-          <div class="panel">
-            <h3><span class="pixel-title" data-scale="2">Turn</span></h3>
-            <div id="turnPanel"></div>
-          </div>
-
-          <div class="panel">
-            <h3><span class="pixel-title" data-scale="2">Chronicle</span></h3>
-            <div id="log" class="log-panel"></div>
-          </div>
-
-          <div class="panel">
-            <button class="btn" onclick="backToSetup()">🔄 New War</button>
-            <button class="btn" id="muteBtn" onclick="toggleSound()">🔊 Sound on</button>
-          </div>
+    <div id="pauseMenu" class="modal-backdrop hidden">
+      <div class="modal">
+        <h2 class="pixel-title" data-scale="3">Paused</h2>
+        <div class="pause-buttons">
+          <button class="btn primary" onclick="togglePause(false)">▶ Resume</button>
+          <button class="btn" id="muteBtn" onclick="toggleSound()">🔊 Sound on</button>
+          <button class="btn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+          <button class="btn" onclick="toggleLogDrawer(); togglePause(false)">📜 Chronicle</button>
+          <button class="btn" onclick="window.open('rules.html', '_blank')">📖 Rules</button>
+          <button class="btn" onclick="backToSetup()">🔄 Abandon war</button>
         </div>
       </div>
     </div>

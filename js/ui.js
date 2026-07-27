@@ -17,7 +17,6 @@ const ui = {
   npcTimer: null,
   numHumans: 1,
   pendingHide: {},     // suit -> drawn cards still in flight (hidden in hand)
-  logSeen: 0,          // chronicle entries already splashed on screen
 };
 
 const BOARD_POS = {
@@ -48,17 +47,18 @@ function newGame(numHumans) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
-  ui.logSeen = 0;
   game = createGame(numHumans);
   sfx.startMusic();
+  document.body.classList.add('playing');
   document.getElementById('setup').classList.add('hidden');
   document.getElementById('gameArea').classList.remove('hidden');
   document.getElementById('endModal').classList.add('hidden');
+  document.getElementById('logDrawer').classList.add('hidden');
+  document.getElementById('pauseMenu').classList.add('hidden');
   const events = game.events.splice(0);
   markPendingHides(events);
   render();
   playFx(events);
-  splashNewLog();
   maybeScheduleNpc();
 }
 
@@ -67,44 +67,48 @@ function backToSetup() {
   ui.npcTimer = null;
   sfx.stopMusic();
   game = null;
+  document.body.classList.remove('playing');
   document.getElementById('endModal').classList.add('hidden');
+  document.getElementById('pauseMenu').classList.add('hidden');
+  document.getElementById('logDrawer').classList.add('hidden');
   document.getElementById('gameArea').classList.add('hidden');
   document.getElementById('setup').classList.remove('hidden');
 }
+
+function toggleLogDrawer() {
+  document.getElementById('logDrawer').classList.toggle('hidden');
+}
+
+function togglePause(show) {
+  const menu = document.getElementById('pauseMenu');
+  menu.classList.toggle('hidden', show === false ? true : show === true ? false : undefined);
+}
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+}
+
+/* Scale the board to fill whatever screen the game runs on. */
+function fitBoard() {
+  const vp = document.querySelector('.board-viewport');
+  const scaler = document.querySelector('.board-scale');
+  if (!vp || !scaler) return;
+  scaler.style.transform = 'none';
+  const bw = scaler.offsetWidth || 1;
+  const bh = scaler.offsetHeight || 1;
+  const scale = Math.min(vp.clientWidth / bw, vp.clientHeight / bh) * 0.97;
+  scaler.style.transform = 'scale(' + Math.min(scale, 1.6).toFixed(3) + ')';
+}
+window.addEventListener('resize', fitBoard);
 
 function afterEngineCall() {
   const events = game.events.splice(0);
   markPendingHides(events);
   render();
   playFx(events);
-  splashNewLog();
   if (game.over) { setTimeout(showEndModal, Math.max(600, fxUntil - Date.now())); return; }
   maybeScheduleNpc();
-}
-
-/* The chronicle stays the full history; every fresh line also pops on screen
- * as a short-lived splash, staggered so they read as the action plays out. */
-function splashNewLog() {
-  const fresh = game.log.slice(ui.logSeen);
-  ui.logSeen = game.log.length;
-  let delay = 0;
-  for (const entry of fresh) {
-    if (entry.kind === 'turn') continue; // the turn banner covers these
-    setTimeout(() => spawnSplash(entry), delay);
-    delay += 500;
-  }
-}
-
-function spawnSplash(entry) {
-  const feed = document.getElementById('splashFeed');
-  if (!feed) return;
-  const el = document.createElement('div');
-  el.className = 'splash splash-' + entry.kind;
-  el.textContent = entry.msg;
-  feed.prepend(el);
-  while (feed.children.length > 3) feed.lastChild.remove();
-  setTimeout(() => el.classList.add('out'), 2600);
-  setTimeout(() => el.remove(), 3100);
 }
 
 /* Cards drawn or dealt this batch stay invisible in the hand until their
@@ -293,7 +297,10 @@ function revealTurn() {
 }
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && game) cancelModal();
+  if (e.key !== 'Escape' || !game) return;
+  if (mustDiscard()) return;
+  if (ui.modal) { cancelModal(); return; }
+  togglePause();
 });
 
 /* Balatro-style 3D tilt: hand cards lean toward the cursor. */
@@ -334,6 +341,7 @@ function render() {
   renderHandoff();
   renderActionModal();
   renderTurnBanner();
+  fitBoard();
 }
 
 function renderTurnBanner() {
@@ -342,7 +350,9 @@ function renderTurnBanner() {
   if (cur.isHuman && myTurn()) {
     if (ui.bannerSuit !== cur.suit) {
       ui.bannerSuit = cur.suit;
-      showBanner(SUIT_META[cur.suit].symbol + '  ' + armyName(cur.suit).toUpperCase() + ' — YOUR TURN', SUIT_META[cur.suit].tint);
+      showBanner(SUIT_META[cur.suit].army + ' - YOUR TURN', {
+        tint: SUIT_META[cur.suit].tint, icon: SUIT_META[cur.suit].symbol, big: true,
+      });
       sfx.draw();
     }
   } else if (!cur.isHuman) {
@@ -350,13 +360,35 @@ function renderTurnBanner() {
   }
 }
 
-function showBanner(text, tint) {
+/* Action announcements share the YOUR TURN style: queued so they never
+ * overlap, pixel-lettered, themed per action (slash variant for damage). */
+let bannerAt = 0;
+
+function showBanner(text, opts) {
+  opts = opts || {};
+  const now = Date.now();
+  const at = Math.max(now, bannerAt);
+  bannerAt = at + (opts.big ? 1000 : 820);
+  setTimeout(() => spawnBanner(text, opts), at - now);
+}
+
+function spawnBanner(text, opts) {
   const el = document.createElement('div');
-  el.className = 'fx-banner';
-  el.style.setProperty('--tint', tint || '#d4a72c');
-  el.innerHTML = '<span>' + text + '</span>';
+  el.className = 'fx-banner ' + (opts.variant || 'sweep') + (opts.big ? ' big' : '');
+  el.style.setProperty('--tint', opts.tint || '#d4a72c');
+  el.innerHTML = (opts.variant === 'slash' ? '<div class="slash-line"></div>' : '') +
+    '<span class="banner-inner">' +
+    (opts.icon ? '<span class="b-icon">' + opts.icon + '</span>' : '') +
+    pixelWordHTML(text, opts.big ? 4 : 3, '#ffffff') +
+    (opts.icon ? '<span class="b-icon">' + opts.icon + '</span>' : '') +
+    '</span>';
   fxRoot().appendChild(el);
-  setTimeout(() => el.remove(), 1600);
+  if (opts.variant === 'slash') sfx.slash();
+  setTimeout(() => el.remove(), opts.big ? 1750 : 1500);
+}
+
+function suitOpts(suit, extra) {
+  return Object.assign({ tint: SUIT_META[suit].tint, icon: SUIT_META[suit].symbol }, extra);
 }
 
 const COURT_EMBLEM = { J: '🗡️', Q: '🚩', K: '👑' };
@@ -573,7 +605,7 @@ function renderHand() {
   if (!a.camp.length) campHtml += '<p class="hint">No armies mustered — deploy a card of your suit.</p>';
   campHtml += '</div></div>';
 
-  let html = campHtml + '<h3>' + armyName(handSuit) + ' — your hand' +
+  let html = campHtml + '<div class="hand-block"><h3>' + armyName(handSuit) + ' — your hand' +
     ' <span class="supply-count">⛽ ' + nSupply + ' supply</span></h3>' +
     '<div class="hand-cards">';
   html += a.hand.map((card, i) => {
@@ -588,50 +620,50 @@ function renderHand() {
       '" style="--i:' + i + '"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
       pcardHTML(card, classes.join(' ')) + '<span class="hand-tag">' + tag + '</span></div>';
   }).join('') || '<p class="hint">Empty hand.</p>';
-  html += '</div>';
+  html += '</div></div>';
   area.innerHTML = html;
 }
 
 function renderSidebar() {
   const cur = currentArmy(game);
 
+  // Top HUD: army chips + season/deck counters
   const prevGlory = ui.glorySeen || {};
-  let rows = '';
+  let chips = '';
   for (const suit of SUITS) {
     const a = game.armies[suit];
     const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
-    rows += '<div class="score-row' + (suit === cur.suit && !game.over ? ' current' : '') + '">' +
-      '<span class="dot" style="background:' + SUIT_META[suit].tint + '"></span>' +
-      '<span class="score-name">' + armyName(suit) + '</span>' +
-      '<span class="score-who">' + (a.isHuman ? playerLabel(suit) : 'Auto') + '</span>' +
-      '<span class="score-glory' + (bumped ? ' bump' : '') + '">' + (game.garrison.owner === suit ? '👑 ' : '') + a.glory + ' 🏅</span>' +
-      '</div>';
+    chips += '<span class="hud-chip' + (suit === cur.suit && !game.over ? ' current' : '') +
+      '" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + ' — ' +
+      (a.isHuman ? playerLabel(suit) : 'Automated') + '">' +
+      '<b>' + SUIT_META[suit].symbol + '</b>' +
+      (game.garrison.owner === suit ? '👑' : '') +
+      '<span class="score-glory' + (bumped ? ' bump' : '') + '">' + a.glory + '</span>' +
+      '</span>';
   }
   ui.glorySeen = {};
   for (const suit of SUITS) ui.glorySeen[suit] = game.armies[suit].glory;
-  rows += '<div class="deck-info">Season ' + game.season + ' of ' + SEASONS +
-    ' · Deck ' + game.deck.length + ' · Discard ' + game.discard.length + '</div>';
-  document.getElementById('scoreboard').innerHTML = rows;
+  document.getElementById('hudScore').innerHTML = chips;
+  document.getElementById('hudInfo').textContent =
+    'S' + game.season + '/' + SEASONS + ' · deck ' + game.deck.length;
 
+  // Contextual prompt line (lives in the bottom bar)
   const panel = document.getElementById('turnPanel');
   if (game.over) {
-    panel.innerHTML = '<p>The war is over. <a href="#" onclick="showEndModal();return false;">View results</a></p>';
+    panel.innerHTML = '<button class="btn primary" onclick="showEndModal()">Results</button>';
     return;
   }
   if (!cur.isHuman) {
-    panel.innerHTML = '<p>' + armyName(cur.suit) + ' (automated) is flipping cards… ' +
-      '(' + game.flipsLeft + ' flip' + (game.flipsLeft === 1 ? '' : 's') + ' left)</p>';
+    panel.innerHTML = '<p class="prompt">' + armyName(cur.suit) + ' is moving…</p>';
     return;
   }
   if (!myTurn()) {
-    panel.innerHTML = '<p>Waiting for ' + playerLabel(cur.suit) + '…</p>';
+    panel.innerHTML = '<p class="prompt">Waiting for ' + playerLabel(cur.suit) + '…</p>';
     return;
   }
-  panel.innerHTML = '<p><strong>' + armyName(cur.suit) + '</strong> — ' + game.actionsLeft +
-    ' action' + (game.actionsLeft === 1 ? '' : 's') + ' left.</p>' +
-    '<p class="prompt">🛡️ Click a card of your suit to deploy it<br>' +
-    '🥾 Click one of your armies to march it</p>' +
-    '<button class="btn" onclick="onEndTurn()">Hold position (end turn)</button>';
+  panel.innerHTML = '<p class="prompt"><strong>' + game.actionsLeft + '</strong> action' +
+    (game.actionsLeft === 1 ? '' : 's') + ' left — tap a card to deploy, an army to march.</p>' +
+    '<button class="btn" onclick="onEndTurn()">Hold position</button>';
 }
 
 function renderHandoff() {
@@ -1015,6 +1047,7 @@ function runFx(ev) {
   const handR = rectOf('#handArea .hand-cards') || rectOf('#handArea');
   switch (ev.type) {
     case 'draw': {
+      showBanner('DRAWS ' + ev.count, suitOpts(ev.suit));
       for (let i = 0; i < ev.count; i++) {
         setTimeout(() => {
           flyHTML(cardBackHTML(), deckR, drawDest(ev.suit), 380);
@@ -1058,12 +1091,25 @@ function runFx(ev) {
       break;
     }
     case 'deploy': {
+      if (ev.target === 'post') {
+        showBanner(ev.card.rank === 'Q' ? 'THE BANNER IS RAISED' : 'THE GENERAL TAKES COMMAND',
+          suitOpts(ev.suit, { icon: ev.card.rank === 'Q' ? '🚩' : '👑' }));
+      } else if (ev.target === 'new') {
+        showBanner('A NEW ARMY MUSTERS', suitOpts(ev.suit, { icon: '🚩' }));
+      } else {
+        showBanner('ARMY REINFORCED', suitOpts(ev.suit, { icon: '🛡️' }));
+      }
       const destSel = cellSel('camp', ev.suit);
-      flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, rectOf(destSel), 400);
-      setTimeout(() => { popSel(destSel); sfx.place(); }, 380);
+      if (!ev.npc) {
+        flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, rectOf(destSel), 400);
+        setTimeout(() => { popSel(destSel); sfx.place(); }, 380);
+      }
       break;
     }
     case 'march': {
+      if (ev.kind === 'merge') showBanner('ARMIES MERGE', suitOpts(ev.suit, { icon: '🧩' }));
+      else if (ev.kind === 'assault') showBanner('ASSAULT ON KARTENBURG!', suitOpts(ev.suit, { icon: '⚔️' }));
+      else showBanner('THE ARMY MARCHES', suitOpts(ev.suit, { icon: '🥾' }));
       const fromSel = ev.from.zone === 'camp' ? cellSel('camp', ev.suit) : cellSel('road', ev.suit, ev.from.idx);
       const destSel = ev.dest.zone === 'citadel' ? cellSel('citadel') : cellSel('road', ev.suit, ev.dest.idx);
       const html = '<div class="stack">' + ev.cards.map(c => pcardHTML(c, 'mini')).join('') + '</div>';
@@ -1073,6 +1119,7 @@ function runFx(ev) {
       break;
     }
     case 'assault': {
+      if (!ev.won) showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
       const r = rectOf(cellSel('citadel'));
       setTimeout(() => {
         flashAt(r);
@@ -1084,6 +1131,7 @@ function runFx(ev) {
       break;
     }
     case 'capture': {
+      showBanner('KARTENBURG FALLS!', suitOpts(ev.suit, { icon: '👑', big: true }));
       const r = rectOf(cellSel('citadel'));
       flashAt(r);
       hitstop(95); // Vlambeer freeze-frame before the payoff
@@ -1097,6 +1145,7 @@ function runFx(ev) {
       break;
     }
     case 'raid': {
+      showBanner(ev.won ? 'RAIDERS STRIKE!' : 'RAID REPELLED', { tint: '#d06050', variant: 'slash' });
       const targetSel = cellSel('road', ev.targetSuit, ev.roadIdx);
       const tr = rectOf(targetSel);
       flyHTML(pcardHTML(ev.jack), deckR && !game.armies[ev.attacker].isHuman ? deckR : (handR || deckR), tr, 420, 'spin');
@@ -1110,6 +1159,7 @@ function runFx(ev) {
       break;
     }
     case 'tribute': {
+      showBanner('TRIBUTE +' + GLORY.tribute, suitOpts(ev.suit, { icon: '👑' }));
       const r = rectOf(cellSel('citadel'));
       floatText('+' + GLORY.tribute + ' 🏅', r, 'gold');
       sfx.coin();
@@ -1132,7 +1182,7 @@ function runFx(ev) {
       el.className = 'fx-season';
       fxRoot().appendChild(el);
       setTimeout(() => el.remove(), 950);
-      floatText('🌱 Season ' + ev.season + ' — the fallen return', rectOf('#board'), 'gold big');
+      showBanner('SEASON ' + ev.season + ' - THE FALLEN RETURN', { tint: '#4c7a3d', icon: '🌱', big: true });
       sfx.shuffleSound();
       break;
     }
@@ -1222,6 +1272,7 @@ const sfx = (() => {
       if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
     },
     tick() { tone(980, 0.03, 'square', 0.028); },
+    slash() { noise(0.1, 0.16, 3200); tone(1400, 0.06, 'sawtooth', 0.05); tone(500, 0.1, 'sawtooth', 0.05, 0.05); },
     draw() { tone(620, 0.07, 'triangle', 0.05); },
     flip() { tone(440, 0.05, 'triangle', 0.05); tone(660, 0.06, 'triangle', 0.04, 0.05); },
     place() { tone(200, 0.07, 'square', 0.06); tone(300, 0.06, 'square', 0.045, 0.04); },
