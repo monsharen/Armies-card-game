@@ -642,3 +642,88 @@ body { background-color: #14161d; }
 
 /* Panels get a touch of depth over the swirl */
 .panel, .board-wrap, .feature, .hero .intro { backdrop-filter: saturate(1.05); }
+
+
+/* ── WebGL pixel swirl (low-res canvas upscaled nearest-neighbor) ── */
+.swirl-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: -1;
+  display: none;
+  image-rendering: pixelated;
+  opacity: 0.55;
+}
+body.gl-swirl .swirl-canvas { display: block; }
+body.gl-swirl .bg-swirl { display: none; }
+
+/* ── Hitstop: the world freezes for a frame before big payoffs ── */
+body.hitstop #fx *,
+body.hitstop .board-wrap,
+body.hitstop .hand-slot,
+body.hitstop .cell.citadel {
+  animation-play-state: paused !important;
+}
+
+/* Ghost trails behind flying cards */
+.fx-ghost { filter: saturate(0.7) brightness(1.3); }
+
+/* End-of-war count-up */
+#endTable .glory-count { font-weight: bold; min-width: 3ch; }
+#endTable .glory-count.bump { animation: gloryBump 0.25s cubic-bezier(0.3, 1.6, 0.6, 1); }
+#endTable .winner-row.winner-reveal td {
+  animation: winnerShine 1.2s ease-in-out;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(212, 167, 44, 0.7);
+}
+@keyframes winnerShine {
+  0% { background: transparent; }
+  30% { background: rgba(212, 167, 44, 0.25); }
+  100% { background: transparent; }
+}
+
+/* ── Pixel mode: chunky sprites and hard edges ── */
+img.pcard.pix {
+  image-rendering: pixelated;
+  border: none;
+  background: none;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+  border-radius: 0;
+  display: block;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+img.pcard.pix.supply { filter: saturate(0.55) brightness(0.88); }
+img.pcard.pix.selected { outline: 3px solid var(--gold); }
+.stack img.pcard.pix { width: 30px; height: 42px; }
+.camp-stack img.pcard.pix { width: 24px; height: 34px; }
+body.pixel-mode .pcard,
+body.pixel-mode .btn,
+body.pixel-mode .panel,
+body.pixel-mode .modal,
+body.pixel-mode .cell,
+body.pixel-mode .board-wrap,
+body.pixel-mode .score-row,
+body.pixel-mode .am-option,
+body.pixel-mode .camp-army,
+body.pixel-mode .army-chip,
+body.pixel-mode .str-badge {
+  border-radius: 0 !important;
+}
+body.pixel-mode .board-wrap {
+  background: radial-gradient(ellipse at 50% 30%, #2b4433 0%, #1e2f24 55%, #131c16 100%);
+  box-shadow: inset 0 0 0 4px #0d130f, 7px 7px 0 rgba(0, 0, 0, 0.45);
+  border-width: 4px;
+}
+body.pixel-mode .btn { box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.5); }
+body.pixel-mode .btn:hover:not(:disabled) { transform: translate(-1px, -2px); box-shadow: 4px 5px 0 rgba(0, 0, 0, 0.5); }
+body.pixel-mode .btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.5); }
+body.pixel-mode .panel { box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4); }
+body.pixel-mode .modal { box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5); }
+body.pixel-mode .fx-flash { border-radius: 0; }
+body.pixel-mode .fx-spark { border-radius: 0; width: 8px; height: 8px; }
+body.pixel-mode .swirl-canvas { opacity: 0.65; }
+body.pixel-mode #fx .fx-fly { filter: none; }
+body.pixel-mode .cell.citadel,
+body.pixel-mode .cell.camp { border-width: 3px; }

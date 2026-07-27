@@ -34,13 +34,23 @@ seconds (the supply bank is literally a face-up pile of cards).
 | `rules.html` | Full rules and strategy tips |
 | `reference.html` | Printable one-page reference sheet for tabletop play |
 
+## Presentation
+
+Balatro-inspired game feel: a WebGL swirl background rendered at low resolution
+and upscaled nearest-neighbor, living cards (idle sway + 3D cursor tilt), card
+flight trails, hitstop freeze-frames on captures, an animated count-up on the
+final scoreboard, generative WebAudio ambience and sound effects (mute toggle),
+and an optional **Pixel mode** that redraws every card as a low-res canvas
+sprite with hard-edged pixel UI.
+
 ## Code layout
 
 ```
 css/style.css   — all styling (incl. print styles for the reference sheet)
 js/cards.js     — deck, suits, strengths, army names
 js/engine.js    — pure game logic, no DOM (unit-testable in Node)
-js/ui.js        — rendering + input for game.html
+js/ui.js        — rendering, input, FX queue and sound for game.html
+js/swirl.js     — WebGL pixel-swirl background (CSS fallback)
 ```
 
 The engine has no DOM dependencies, so full games can be simulated headlessly in Node

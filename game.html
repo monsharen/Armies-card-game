@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <canvas id="swirlCanvas" class="swirl-canvas" aria-hidden="true"></canvas>
   <div class="bg-swirl" aria-hidden="true"></div>
   <nav>
     <a class="brand" href="index.html">🃏 Kartenburg</a>
@@ -28,6 +29,7 @@
         <button class="btn big" onclick="newGame(3)">3 Players<br><small>+ 1 automated army</small></button>
         <button class="btn big" onclick="newGame(4)">4 Players<br><small>no automation</small></button>
       </div>
+      <p style="margin-top:1.4rem"><button class="btn pixelBtn" onclick="togglePixel()">🕹️ Pixel mode: off</button></p>
     </div>
 
     <div id="gameArea" class="hidden">
@@ -58,6 +60,7 @@
           <div class="panel">
             <button class="btn" onclick="backToSetup()">🔄 New War</button>
             <button class="btn" id="muteBtn" onclick="toggleSound()">🔊 Sound on</button>
+            <button class="btn pixelBtn" onclick="togglePixel()">🕹️ Pixel mode: off</button>
           </div>
         </div>
       </div>
@@ -95,6 +98,7 @@
 
   <div id="toast"></div>
 
+  <script src="js/swirl.js"></script>
   <script src="js/cards.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>
