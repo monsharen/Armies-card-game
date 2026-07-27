@@ -273,7 +273,7 @@ function renderBoard() {
     }
   }
 
-  // Leipzig
+  // Kartenburg
   const g = game.garrison;
   const citClasses = ['cell', 'citadel'];
   if (marchPlan && marchPlan.dest.zone === 'citadel') citClasses.push('targetable');
@@ -281,7 +281,7 @@ function renderBoard() {
   if (g.owner) citClasses.push('owner-' + g.owner);
   html += '<div class="' + citClasses.join(' ') + '" style="grid-row:5;grid-column:5"' +
     ' onclick="onCellClick(\'citadel\',null,0)"' +
-    ' title="Leipzig — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') +
+    ' title="Kartenburg — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') +
     ', defends at ' + effStrength(game, g.owner, g.cards) + '. Pays ' + GLORY.tribute +
     ' glory per turn to its holder.">' +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) + '</div>';
@@ -398,7 +398,7 @@ function renderSidebar() {
   } else if (mode === 'march') {
     const plan = myPlans().find(p => p.from.zone === ui.mode.from.zone && p.from.idx === ui.mode.from.idx);
     if (plan) {
-      const what = plan.kind === 'assault' ? 'assault Leipzig' :
+      const what = plan.kind === 'assault' ? 'assault Kartenburg' :
         plan.kind === 'merge' ? 'merge with your army ahead' : 'advance one space';
       html += '<p class="prompt">This army will <strong>' + what + '</strong> for ' +
         plan.cost + ' supply (you have ' + supplyIndices(cur).length +
