@@ -352,7 +352,9 @@ function discardFromHand(state, handIdx) {
 }
 
 /* Deploy a card of your suit. target: {zone:'newcamp'} starts a fresh army;
- * {zone:'camp'|'road', idx} or {zone:'garrison'} reinforces that army. */
+ * {zone:'camp', idx} reinforces that camp army. Armies that have marched out
+ * (road or garrison) can NOT be reinforced — cards enter the board only in
+ * camp, and strength moves only by paying supply. Marching is a commitment. */
 function deployCard(state, handIdx, target) {
   const g = humanGuard(state);
   if (!g.ok) return g;
@@ -373,19 +375,15 @@ function deployCard(state, handIdx, target) {
     addLog(state, 'player', armyName(army.suit) + ' musters a new army: ' + cardLabel(card) +
       ' (strength ' + strength(card) + ').');
   } else {
-    let cards;
-    if (target.zone === 'garrison') {
-      if (state.garrison.owner !== army.suit) return { ok: false, msg: 'You can only reinforce your own garrison.' };
-      cards = state.garrison.cards;
-    } else {
-      const stack = stackAt(army, target);
-      if (!stack) return { ok: false, msg: 'No army there.' };
-      cards = stack.cards;
+    if (target.zone !== 'camp') {
+      return { ok: false, msg: 'Armies can only be reinforced in camp — once they march out, their roster is fixed.' };
     }
-    if (cards.length >= STACK_CAP) return { ok: false, msg: 'That army is full (' + STACK_CAP + ' cards).' };
-    cards.push(card);
-    addLog(state, 'player', armyName(army.suit) + ' reinforces an army: now ' +
-      stackLabel(cards) + ' (strength ' + stackSum(cards) + ').');
+    const stack = army.camp[target.idx];
+    if (!stack) return { ok: false, msg: 'No army there.' };
+    if (stack.cards.length >= STACK_CAP) return { ok: false, msg: 'That army is full (' + STACK_CAP + ' cards).' };
+    stack.cards.push(card);
+    addLog(state, 'player', armyName(army.suit) + ' reinforces a camp army: now ' +
+      stackLabel(stack.cards) + ' (strength ' + stackSum(stack.cards) + ').');
   }
   army.hand.splice(handIdx, 1);
   spendAction(state);
@@ -455,21 +453,18 @@ function npcRaidTarget(state, suit) {
   return best;
 }
 
+/* Reinforcement is camp-only (marching is a commitment): the fullest camp
+ * army with room gets the recruit (oldest on ties), else a new army forms. */
 function npcReinforce(state, army, card) {
-  const targets = [];
-  if (state.garrison.owner === army.suit && state.garrison.cards.length < STACK_CAP) {
-    targets.push(state.garrison.cards);
-  }
-  for (let i = ROAD_LEN - 1; i >= 0; i--) {
-    if (army.road[i] && army.road[i].cards.length < STACK_CAP) targets.push(army.road[i].cards);
-  }
+  let target = null;
   for (const stack of army.camp) {
-    if (stack.cards.length < STACK_CAP) targets.push(stack.cards);
+    if (stack.cards.length >= STACK_CAP) continue;
+    if (!target || stack.cards.length > target.cards.length) target = stack;
   }
-  if (targets.length) {
-    targets[0].push(card);
+  if (target) {
+    target.cards.push(card);
     addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +
-      ' — reinforces an army: now ' + stackLabel(targets[0]) + ' (strength ' + stackSum(targets[0]) + ').');
+      ' — reinforces a camp army: now ' + stackLabel(target.cards) + ' (strength ' + stackSum(target.cards) + ').');
   } else {
     army.camp.push({ cards: [card] });
     addLog(state, 'npc', armyName(army.suit) + ' flips ' + cardLabel(card) +

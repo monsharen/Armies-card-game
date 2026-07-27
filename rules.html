@@ -63,7 +63,7 @@
     <strong>2. Take up to 2 actions</strong>, any mix of:</p>
     <table>
       <tr><th>Action</th><th>What happens</th></tr>
-      <tr><td>🛡️ <strong>Deploy</strong></td><td>Play a card of your suit: found a <em>new army</em> in camp, or <em>reinforce</em> any of your armies — in camp, on the road, or garrisoning Kartenburg (max 3 cards). Queen and King take their camp posts instead.</td></tr>
+      <tr><td>🛡️ <strong>Deploy</strong></td><td>Play a card of your suit: found a <em>new army</em> in camp, or <em>reinforce</em> one of your <strong>camp</strong> armies (max 3 cards). Armies that have marched out are on their own — the only way to strengthen a marching army is to merge another into it. Queen and King take their camp posts instead.</td></tr>
       <tr><td>🥾 <strong>March</strong></td><td>Discard one supply per card in the stack (King: one less, min 1); the army advances one space. Marching onto your own army <strong>merges</strong> them (if the result fits under 3 cards); marching from the gate <strong>assaults Kartenburg</strong>.</td></tr>
       <tr><td>🗡️ <strong>Raid</strong></td><td>Play your Jack at any enemy army on a road. It strikes the army's <strong>weakest card</strong>, fighting at 11 (+2 with your Banner). Win and that card is discarded. Win or lose, the Jack withdraws (discard).</td></tr>
     </table>
@@ -82,16 +82,17 @@
     <h2>Kartenburg pays tribute 👑</h2>
     <p>At the start of each of your turns, if your army garrisons Kartenburg you collect
     <strong>+1 glory</strong>. This is the game's clock: every turn you spend at home
-    assembling the perfect host, the current holder banks another point. Garrisons can be
-    reinforced like any army — but they erode by one card each time they repel an assault,
-    so even a fortress can be brought down by waves of cheap attackers.</p>
+    assembling the perfect host, the current holder banks another point. But no crown sits
+    easy: the garrison <strong>cannot be reinforced</strong>, and it erodes by one card each
+    time it repels an assault — every fortress eventually falls, so the city keeps changing
+    hands.</p>
 
     <h2>Automated armies</h2>
     <p>An automated army's turn is two card flips off the deck, resolved one at a time —
     any player can run it in seconds:</p>
     <table>
       <tr><th>Flip</th><th>The army…</th></tr>
-      <tr><td>Its own suit</td><td>Q and K take their posts. A <strong>Jack raids</strong> the enemy army nearest Kartenburg (tie: strongest, then clockwise) — or reinforces if there's nothing to raid. Anything else <strong>reinforces the most forward army with room</strong> (garrison first, then road, then camp), or founds a new army.</td></tr>
+      <tr><td>Its own suit</td><td>Q and K take their posts. A <strong>Jack raids</strong> the enemy army nearest Kartenburg (tie: strongest, then clockwise) — or reinforces if there's nothing to raid. Anything else <strong>reinforces its fullest camp army with room</strong> (oldest on ties), or founds a new army.</td></tr>
       <tr><td>Any other suit</td><td>Goes to its <strong>supply pile</strong> (face up beside its road). The moment the pile covers the frontmost army's march cost, that army <strong>marches</strong> (assaulting from the gate) and the pile is spent.</td></tr>
     </table>
     <p>No decisions, fully deterministic — automated hosts mass at the gate and surge
@@ -119,9 +120,10 @@
     <div class="tip">🗡️ <strong>Raid the siege camp.</strong> A Jack that picks the 10 out
     of an enemy's gate army wastes several of their turns and supplies. Save raids for
     stacks about to assault.</div>
-    <div class="tip">🧩 <strong>Assemble at the gate.</strong> Two small armies marching
-    separately are cheaper to move than one big one — merge them at the last road space,
-    strike, and let your King make the whole operation almost free.</div>
+    <div class="tip">🧩 <strong>Send it when it's ready.</strong> An army's roster is fixed
+    the moment it leaves camp — the only way to grow it on the road is to merge another
+    paid-for army into it. Marching two small columns and joining them at the gate costs the
+    same supply as one heavy host, just more actions.</div>
 
     <p><a class="btn primary" href="game.html">▶ Start the War</a></p>
   </main>
