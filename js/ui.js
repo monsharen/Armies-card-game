@@ -48,6 +48,8 @@ function newGame(numHumans, tutorialDeck) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
+  ui.glorySrc = {};
+  for (const s of SUITS) ui.glorySrc[s] = { capture: 0, tribute: 0, season: 0 };
   game = createGame(numHumans, tutorialDeck);
   sfx.startMusic();
   document.body.classList.add('playing');
@@ -59,6 +61,7 @@ function newGame(numHumans, tutorialDeck) {
   document.getElementById('howto').classList.add('hidden');
   const events = game.events.splice(0);
   markPendingHides(events);
+  tallyGlory(events);
   cam.map = null;
   cam.turnKey = -1;
   cam.manual = false;
@@ -598,10 +601,24 @@ window.addEventListener('resize', () => { if (game) updateCamera(false); });
 function afterEngineCall() {
   const events = game.events.splice(0);
   markPendingHides(events);
+  tallyGlory(events);
   render();
   playFx(events);
   if (game.over) { setTimeout(showEndModal, Math.max(600, fxUntil - Date.now())); return; }
   maybeScheduleNpc();
+}
+
+/* Running per-army glory-source tally (for the end-of-war breakdown —
+ * battle glory is derived as the remainder). */
+function tallyGlory(events) {
+  if (!ui.glorySrc) return;
+  for (const ev of events) {
+    const t = ui.glorySrc[ev.suit];
+    if (!t) continue;
+    if (ev.type === 'capture') t.capture += GLORY.capture;
+    else if (ev.type === 'tribute') t.tribute += GLORY.tribute;
+    else if (ev.type === 'seasonHold') t.season += GLORY.season;
+  }
 }
 
 /* Cards drawn or dealt this batch stay invisible in the hand until their
@@ -1170,7 +1187,7 @@ function renderSidebar() {
     const a = game.armies[suit];
     const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
     chips += '<span class="hud-chip' + (suit === cur.suit && !game.over ? ' current' : '') +
-      '" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + ' — ' +
+      '" data-suit="' + suit + '" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + ' — ' +
       (a.isHuman ? playerLabel(suit) : 'Automated') + '">' +
       '<b>' + SUIT_META[suit].symbol + '</b>' +
       (game.garrison.owner === suit ? '👑' : '') +
@@ -1426,11 +1443,18 @@ function showEndModal() {
   document.getElementById('endVerdict').innerHTML = '🏆 ' +
     game.winners.map(armyName).join(' & ') + ' — victorious with ' +
     game.armies[game.winners[0]].glory + ' glory!';
+  const src = ui.glorySrc || {};
   document.getElementById('endTable').innerHTML =
-    '<tr><th>Army</th><th>Controller</th><th>Glory</th></tr>' +
-    rows.map(s => '<tr' + (game.winners.indexOf(s) !== -1 ? ' class="winner-row"' : '') + '><td>' + armyName(s) + '</td><td>' +
-      (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td class="glory-count" data-v="' +
-      game.armies[s].glory + '">0</td></tr>').join('');
+    '<tr><th>Army</th><th>Controller</th><th>Glory</th><th class="glory-src">The tale</th></tr>' +
+    rows.map(s => {
+      const t = src[s] || { capture: 0, tribute: 0, season: 0 };
+      const battle = Math.max(0, game.armies[s].glory - t.capture - t.tribute - t.season);
+      return '<tr' + (game.winners.indexOf(s) !== -1 ? ' class="winner-row"' : '') + '><td>' + armyName(s) + '</td><td>' +
+        (game.armies[s].isHuman ? playerLabel(s) : 'Automated') + '</td><td class="glory-count" data-v="' +
+        game.armies[s].glory + '">0</td><td class="glory-src">🏰' + t.capture + ' 👑' + t.tribute +
+        ' ⚔️' + battle + ' 🌱' + t.season + '</td></tr>';
+    }).join('') +
+    '<tr class="src-legend"><td colspan="4">🏰 capture · 👑 tribute · ⚔️ battle · 🌱 season hold</td></tr>';
   document.getElementById('endModal').classList.remove('hidden');
 
   // Balatro-style scoring: each row counts up with ticks, winner shines last.
@@ -1491,7 +1515,7 @@ function toast(msg) {
 let fxUntil = 0;
 
 const FX_DUR = {
-  draw: 420, flip: 950, deploy: 480, march: 520, assault: 700, capture: 700,
+  draw: 420, flip: 950, deploy: 480, march: 520, assault: 2600, capture: 700,
   raid: 750, tribute: 420, supply: 380, toss: 320, season: 950,
   deal: 780, garrison: 1550,
   defense: 650, reserve: 620, postraid: 780, seasonHold: 900,
@@ -1661,6 +1685,95 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
 const GOLD_SPARKS = ['#d4a72c', '#f0cd6b', '#fff3c4'];
 const BLOOD_SPARKS = ['#d06050', '#8a2f24', '#f0a08c'];
 
+/* A glory coin flies from where it was earned to that army's HUD score chip,
+ * which pops on landing — the payoff always travels to the scoreboard. */
+function gloryFly(suit, amount, fromR) {
+  const chip = document.querySelector('#hudScore .hud-chip[data-suit="' + suit + '"]');
+  if (!fromR || !chip) return;
+  flyHTML('<span class="glory-fly">🏅' + (amount > 1 ? '<b>×' + amount + '</b>' : '') + '</span>',
+    fromR, chip.getBoundingClientRect(), 520);
+  setTimeout(() => {
+    const c = document.querySelector('#hudScore .hud-chip[data-suit="' + suit + '"]');
+    if (c) {
+      c.classList.remove('chip-pop');
+      void c.offsetWidth;
+      c.classList.add('chip-pop');
+    }
+    sfx.coin();
+  }, 500);
+}
+
+/* Balatro-style battle cascade for assaults: both totals build card by card
+ * with rising pings, bonuses chip in, a beat of silence, then the clash. */
+function battleDuel(ev) {
+  const attCards = ev.cards || [];
+  const defCards = ev.defCards || [];
+  const attBonus = ev.attStr - stackSum(attCards);
+  const defBonus = ev.defStr - stackSum(defCards);
+  const defMeta = ev.defOwner ? SUIT_META[ev.defOwner] : { symbol: '⚔', tint: '#8a8f98' };
+  const el = document.createElement('div');
+  el.className = 'fx-duel';
+  el.innerHTML =
+    '<div class="duel-side att" style="--tint:' + SUIT_META[ev.suit].tint + '">' +
+    '<span class="duel-sym">' + SUIT_META[ev.suit].symbol + '</span>' +
+    '<div class="duel-num"></div><div class="duel-chips"></div></div>' +
+    '<div class="duel-vs">' + pixelWordHTML('VS', 3, '#d4a72c') + '</div>' +
+    '<div class="duel-side def" style="--tint:' + defMeta.tint + '">' +
+    '<span class="duel-sym">' + defMeta.symbol + '</span>' +
+    '<div class="duel-num"></div><div class="duel-chips"></div></div>';
+  fxRoot().appendChild(el);
+  const sides = el.querySelectorAll('.duel-side');
+  const setNum = (side, v) => {
+    side.querySelector('.duel-num').innerHTML = pixelWordHTML(String(v), 5, '#ffffff');
+  };
+  setNum(sides[0], 0);
+  setNum(sides[1], 0);
+  let t = 300, ping = 0;
+  const tick = (side, val, chipHtml) => {
+    const p = ping++, at = t;
+    t += 170;
+    setTimeout(() => {
+      setNum(side, val);
+      side.querySelector('.duel-chips').insertAdjacentHTML('beforeend', chipHtml);
+      side.classList.remove('duel-tick');
+      void side.offsetWidth;
+      side.classList.add('duel-tick');
+      sfx.ping(p);
+    }, at);
+  };
+  const seq = (side, cardsArr, bonus, bonusLabel) => {
+    let run = 0;
+    for (const c of cardsArr) {
+      run += strength(c);
+      tick(side, run, pcardHTML(c, 'mini'));
+    }
+    if (bonus > 0) {
+      tick(side, run + bonus, '<span class="duel-chip">+' + bonus + ' ' + bonusLabel + '</span>');
+    }
+  };
+  seq(sides[0], attCards, attBonus, '🚩');
+  t += 240;
+  seq(sides[1], defCards, defBonus, '🛡️');
+  t += 320;
+  const clashAt = t;
+  setTimeout(() => {
+    hitstop(90);
+    const r = rectOf(cellSel('citadel'));
+    shake(ev.won ? 'lg' : 'md');
+    sparks(r, ev.won ? GOLD_SPARKS : BLOOD_SPARKS, ev.won ? 20 : 14);
+    sides[ev.won ? 0 : 1].classList.add('duel-win');
+    sides[ev.won ? 1 : 0].classList.add('duel-lose');
+    sfx.thud();
+    if (!ev.won) {
+      showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
+      // Battered walls pay the attacker; a clean repel pays the holder.
+      if (defCards.length >= 2) gloryFly(ev.suit, GLORY.siege, r);
+      else if (ev.defOwner) gloryFly(ev.defOwner, GLORY.battle, r);
+    }
+  }, clashAt);
+  setTimeout(() => el.remove(), clashAt + 900);
+}
+
 function runFx(ev) {
   const deckR = rectOf('#deckPile');
   const discR = rectOf('#discardPile');
@@ -1740,15 +1853,7 @@ function runFx(ev) {
     }
     case 'assault': {
       camPunch('citadel');
-      if (!ev.won) showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
-      const r = rectOf(cellSel('citadel'));
-      setTimeout(() => {
-        flashAt(r);
-        shake(ev.won ? 'lg' : 'md');
-        sparks(r, ev.won ? GOLD_SPARKS : BLOOD_SPARKS, ev.won ? 20 : 14);
-        floatText(ev.won ? '⚔️ ' + ev.attStr + ' vs ' + ev.defStr : '🛡️ ' + ev.attStr + ' vs ' + ev.defStr, r, ev.won ? 'gold big' : 'red');
-        sfx.thud();
-      }, 150);
+      battleDuel(ev);
       break;
     }
     case 'capture': {
@@ -1761,6 +1866,7 @@ function runFx(ev) {
         shake('lg');
         sparks(r, GOLD_SPARKS, 26);
         floatText('+' + GLORY.capture + ' 🏅 KARTENBURG FALLS!', r, 'gold big');
+        gloryFly(ev.suit, GLORY.capture, r);
         sfx.fanfare();
       }, 100);
       break;
@@ -1776,6 +1882,7 @@ function runFx(ev) {
         shake('sm');
         sparks(tr, BLOOD_SPARKS, 12);
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', tr, ev.won ? 'red big' : 'gold');
+        gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, tr);
         sfx.thud();
       }, 430);
       break;
@@ -1783,8 +1890,7 @@ function runFx(ev) {
     case 'tribute': {
       showBanner('TRIBUTE +' + GLORY.tribute, suitOpts(ev.suit, { icon: '👑' }));
       const r = rectOf(cellSel('citadel'));
-      floatText('+' + GLORY.tribute + ' 🏅', r, 'gold');
-      sfx.coin();
+      gloryFly(ev.suit, GLORY.tribute, r);
       break;
     }
     case 'supply': {
@@ -1812,7 +1918,7 @@ function runFx(ev) {
       showBanner('THE CROWN ENDURES +' + GLORY.season, suitOpts(ev.suit, { icon: '👑', big: true }));
       const r = rectOf(cellSel('citadel'));
       sparks(r, GOLD_SPARKS, 18);
-      floatText('+' + GLORY.season + ' 🏅', r, 'gold big');
+      gloryFly(ev.suit, GLORY.season, r);
       sfx.fanfare();
       break;
     }
@@ -1839,6 +1945,7 @@ function runFx(ev) {
         shake(ev.won ? 'md' : 'sm');
         sparks(cr, BLOOD_SPARKS, ev.won ? 18 : 10);
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', cr, ev.won ? 'red big' : 'gold');
+        gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, cr);
         sfx.thud();
       }, 430);
       break;
@@ -1929,6 +2036,12 @@ const sfx = (() => {
       if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
     },
     tick() { tone(980, 0.03, 'square', 0.028); },
+    // Rising-pitch scoring ping: each chip in a cascade sounds higher.
+    ping(step) {
+      const f = 540 * Math.pow(1.07, step);
+      tone(f, 0.07, 'triangle', 0.06);
+      tone(f * 2, 0.05, 'sine', 0.022, 0.01);
+    },
     slash() { noise(0.1, 0.16, 3200); tone(1400, 0.06, 'sawtooth', 0.05); tone(500, 0.1, 'sawtooth', 0.05, 0.05); },
     draw() { tone(620, 0.07, 'triangle', 0.05); },
     flip() { tone(440, 0.05, 'triangle', 0.05); tone(660, 0.06, 'triangle', 0.04, 0.05); },

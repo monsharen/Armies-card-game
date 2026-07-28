@@ -258,7 +258,8 @@ function resolveAssault(state, suit, stack, defBonus) {
   const attStr = effStrength(state, suit, stack.cards);
   const defStr = effStrength(state, g.owner, g.cards) + (defBonus || 0);
   const defName = g.owner ? armyName(g.owner) : 'the mercenaries';
-  pushEvent(state, { type: 'assault', suit, won: attStr > defStr, attStr, defStr });
+  pushEvent(state, { type: 'assault', suit, won: attStr > defStr, attStr, defStr,
+    cards: stack.cards.slice(), defCards: g.cards.slice(), defOwner: g.owner });
   if (attStr > defStr) {
     for (const c of g.cards) state.discard.push(c);
     const fallen = takeCasualties(state, stack.cards);

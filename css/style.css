@@ -1196,3 +1196,90 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
   }
   #tutorBox .tut-text { font-size: 0.8rem; }
 }
+
+/* ── Balatro-style battle cascade + glory payoff ─────────────────────── */
+.fx-duel {
+  position: fixed;
+  left: 50%;
+  top: 34%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  z-index: 46;
+  background: rgba(10, 12, 18, 0.86);
+  border: 2px solid var(--gold-dim);
+  border-radius: 12px;
+  padding: 0.9rem 1.5rem;
+  pointer-events: none;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.65);
+  animation: duel-in 0.25s ease-out;
+}
+@keyframes duel-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+}
+.duel-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 96px;
+}
+.duel-sym { font-size: 1.3rem; color: var(--tint); text-shadow: 0 0 8px var(--tint); }
+.duel-num { min-height: 27px; filter: drop-shadow(0 0 7px var(--tint)); }
+.duel-side.duel-tick .duel-num { animation: duel-pop 0.18s ease-out; }
+@keyframes duel-pop {
+  from { transform: scale(1.4); }
+  to { transform: none; }
+}
+.duel-chips {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 140px;
+  min-height: 24px;
+}
+.duel-chip {
+  font-size: 0.72rem;
+  color: var(--gold);
+  border: 1px solid var(--gold-dim);
+  border-radius: 6px;
+  padding: 1px 5px;
+  background: rgba(212, 167, 44, 0.12);
+  white-space: nowrap;
+}
+.duel-vs { align-self: center; opacity: 0.9; }
+.duel-side.duel-win { animation: duel-winner 0.5s ease-out forwards; }
+@keyframes duel-winner {
+  30% { transform: scale(1.28); }
+  100% { transform: scale(1.1); }
+}
+.duel-side.duel-lose {
+  opacity: 0.3;
+  filter: grayscale(0.85);
+  transition: opacity 0.35s, filter 0.35s;
+}
+
+.glory-fly { font-size: 1.35rem; filter: drop-shadow(0 0 7px rgba(212, 167, 44, 0.85)); }
+.glory-fly b { font-size: 0.85rem; color: var(--gold); }
+.hud-chip.chip-pop { animation: chip-pop 0.45s ease-out; }
+@keyframes chip-pop {
+  30% { transform: scale(1.28); box-shadow: 0 0 14px rgba(212, 167, 44, 0.95); }
+}
+
+#endTable .glory-src { font-size: 0.74rem; color: var(--muted); white-space: nowrap; }
+#endTable th.glory-src { text-transform: none; }
+#endTable .src-legend td {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-align: center;
+  padding-top: 0.5rem;
+  border: 0;
+}
+@media (max-width: 760px) {
+  .fx-duel { gap: 0.8rem; padding: 0.7rem 0.9rem; top: 30%; }
+  .duel-side { min-width: 72px; }
+  .duel-chips { max-width: 100px; }
+}
