@@ -95,14 +95,11 @@ function enterMenu() {
   if (!title || title.classList.contains('hidden') || title.dataset.entering) return;
   title.dataset.entering = '1';
   sfx.coin();
-  title.classList.add('crt-off'); // CRT power-off collapse, then the menu
-  setTimeout(() => {
-    title.classList.add('hidden');
-    document.body.classList.remove('on-title');
-    document.getElementById('setup').classList.remove('hidden');
-    sfx.startMusic();
-    sfx.draw();
-  }, 420);
+  title.classList.add('hidden');
+  document.body.classList.remove('on-title');
+  document.getElementById('setup').classList.remove('hidden');
+  sfx.startMusic();
+  sfx.draw();
 }
 
 /* Retro title dressing: twinkling pixel stars and drifting card backs.
@@ -405,12 +402,26 @@ const cam = {
 const CAM_MIN = 0.3;
 const CAM_MAX = 2.4;
 
+/* Portrait phones get the lane view (no 2D map, no camera); wide screens
+ * keep the full table. Same data-cell anchors, so FX work in both. */
+const laneMQ = window.matchMedia('(max-width: 760px)');
+function laneOn() { return laneMQ.matches; }
+const laneModeChanged = () => {
+  if (!game) return;
+  document.body.classList.toggle('lane-mode', laneOn());
+  cam.map = null;
+  render();
+  if (!laneOn()) { measureBoard(); updateCamera(false); }
+};
+if (laneMQ.addEventListener) laneMQ.addEventListener('change', laneModeChanged);
+else if (laneMQ.addListener) laneMQ.addListener(laneModeChanged);
+
 function camViewport() { return document.querySelector('.board-viewport'); }
 function camScaler() { return document.querySelector('.board-scale'); }
 
 function measureBoard() {
   const sc = camScaler();
-  if (!sc) return;
+  if (!sc || laneOn()) return;
   const t = sc.style.transform;
   sc.style.transition = 'none';
   sc.style.transform = 'none';
@@ -428,7 +439,7 @@ function measureBoard() {
 
 function applyCamera(animate) {
   const sc = camScaler();
-  if (!sc) return;
+  if (!sc || laneOn()) return;
   sc.style.transition = animate ? 'transform 0.55s cubic-bezier(0.25, 0.8, 0.35, 1)' : 'none';
   sc.style.transform = 'translate(' + cam.x.toFixed(1) + 'px,' + cam.y.toFixed(1) + 'px) scale(' + cam.z.toFixed(3) + ')';
 }
@@ -480,7 +491,7 @@ function suitBBox(suit) {
 }
 
 function updateCamera(animate) {
-  if (!game || !cam.map) return;
+  if (!game || !cam.map || laneOn()) return;
   if (cam.turnKey !== game.orderIdx) { cam.turnKey = game.orderIdx; cam.manual = false; }
   if (cam.manual) return;
   if (fitZ() >= 0.8) camFitAll(animate);
@@ -492,7 +503,7 @@ function updateCamera(animate) {
 
 /* Brief punch-in on a battle location, then back to the turn framing. */
 function camPunch(key) {
-  if (!cam.map || fitZ() >= 0.8) return;
+  if (!cam.map || laneOn() || fitZ() >= 0.8) return;
   const c = cam.map[key];
   if (!c) return;
   frameRect(c.x - 110, c.y - 110, c.w + 220, c.h + 220, true);
@@ -545,7 +556,7 @@ function initCameraInput() {
     }
   });
   vp.addEventListener('pointermove', e => {
-    if (!pointers.has(e.pointerId)) return;
+    if (laneOn() || !pointers.has(e.pointerId)) return;
     const prev = pointers.get(e.pointerId);
     pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.size === 1) {
@@ -582,11 +593,13 @@ function initCameraInput() {
   vp.addEventListener('pointerup', endPointer);
   vp.addEventListener('pointercancel', endPointer);
   vp.addEventListener('wheel', e => {
+    if (laneOn()) return;
     e.preventDefault();
     cam.manual = true;
     camZoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.13 : 0.885));
   }, { passive: false });
   vp.addEventListener('dblclick', e => {
+    if (laneOn()) return;
     e.preventDefault();
     cam.manual = true;
     if (cam.z > fitZ() * 1.05) camFitAll(true);
@@ -887,6 +900,7 @@ document.addEventListener('pointerleave', () => { if (tiltSlot) { resetTilt(tilt
 
 function render() {
   if (!game) return;
+  document.body.classList.toggle('lane-mode', laneOn());
   renderBoard();
   renderHand();
   renderSidebar();
@@ -1070,7 +1084,79 @@ function stackHTML(state, ownerSuit, cards) {
     '<span class="str-badge">' + str + '</span></div>';
 }
 
+/* ── Lane view: the portrait board. Same state, no geometry — Kartenburg
+ * as a status strip, rivals as compact rows, your lane as the big track.
+ * Cells keep their data-cell anchors so every FX flight still lands. */
+
+function viewerSuit() {
+  const cur = currentArmy(game);
+  if (cur.isHuman && (humanSuits().length <= 1 || ui.revealedSuit === cur.suit)) return cur.suit;
+  if (humanSuits().length) return humanSuits()[0];
+  return cur.suit;
+}
+
+function renderLaneBoard() {
+  const g = game.garrison;
+  const you = viewerSuit();
+  const active = myTurn() && !mustDiscard() && !ui.modal && currentArmy(game).suit === you;
+  const plans = active ? computeMarchPlans(game, you) : [];
+  const nSupply = active ? supplyIndices(game.armies[you]).length : 0;
+  const can = (zone, idx) => plans.some(p => p.from.zone === zone && p.from.idx === idx && p.cost <= nSupply);
+
+  let html = '<div class="lane-city" data-cell="citadel"' +
+    (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
+    ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
+    '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
+    '<div class="lane-city-info">' +
+    '<b>' + (g.owner ? armyName(g.owner) : 'Mercenaries') + '</b>' +
+    '<span id="deckPile" class="lane-pile">Deck ' + game.deck.length + '</span>' +
+    '<span id="discardPile" class="lane-pile">Waste ' + game.discard.length + '</span>' +
+    '</div></div>';
+
+  for (const suit of SUITS) {
+    if (suit === you) continue;
+    const a = game.armies[suit];
+    const camp = a.camp.map(s => stackSum(s.cards)).join('·');
+    html += '<div class="lane-row" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + '">' +
+      '<span class="lane-sym">' + SUIT_META[suit].symbol + '</span>' +
+      '<span class="lane-posts">' + (a.posts.queen ? 'Q' : '') + (a.posts.king ? 'K' : '') +
+      (!a.isHuman && a.supply ? '<i>' + a.supply + '</i>' : '') + '</span>' +
+      '<span class="lane-cell mini camp" data-cell="camp-' + suit + '" title="' + armyName(suit) + ' camp">' +
+      (camp || '·') + '</span>';
+    for (let i = 0; i < ROAD_LEN; i++) {
+      const stack = a.road[i];
+      html += '<span class="lane-cell mini' + (stack ? ' occ' : '') +
+        (stack && i === ROAD_LEN - 1 ? ' threat' : '') + '" data-cell="road-' + suit + '-' + i + '">' +
+        (stack ? effStrength(game, suit, stack.cards) : '') + '</span>';
+    }
+    html += '</div>';
+  }
+
+  const ya = game.armies[you];
+  html += '<div class="lane-you" style="--tint:' + SUIT_META[you].tint + '">' +
+    '<div class="lane-cell you lane-camp" data-cell="camp-' + you + '">' +
+    '<label>Camp' + (ya.posts.queen ? ' Q' : '') + (ya.posts.king ? ' K' : '') + '</label>' +
+    '<div class="lane-camp-armies">' +
+    (ya.camp.map((s, i) =>
+      '<button class="lane-army' + (can('camp', i) ? ' movable' : '') + '"' +
+      (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') +
+      ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
+      stackSum(s.cards) + '</button>').join('') || '<span class="lane-empty">–</span>') +
+    '</div></div>';
+  for (let i = 0; i < ROAD_LEN; i++) {
+    const stack = ya.road[i];
+    html += '<div class="lane-cell you' + (stack ? ' occ' : '') + (can('road', i) ? ' movable' : '') +
+      (i === ROAD_LEN - 1 ? ' gate' : '') + '" data-cell="road-' + you + '-' + i + '"' +
+      ' onclick="onCellClick(\'road\',\'' + you + '\',' + i + ')">' +
+      '<label>' + (i === ROAD_LEN - 1 ? 'Gate' : i + 1) + '</label>' +
+      (stack ? stackHTML(game, you, stack.cards) : '') + '</div>';
+  }
+  html += '</div>';
+  document.getElementById('board').innerHTML = html;
+}
+
 function renderBoard() {
+  if (laneOn()) { renderLaneBoard(); return; }
   const active = myTurn() && !mustDiscard() && !ui.modal;
   const mySuit = game ? currentArmy(game).suit : null;
   const plans = active ? myPlans() : [];
@@ -1149,15 +1235,18 @@ function renderHand() {
   const plans = active ? computeMarchPlans(game, handSuit) : [];
   const nSupply = supplyIndices(a).length;
 
-  let campHtml = '<div class="camp-strip"><h3>Your camp</h3><div class="camp-armies">';
-  campHtml += a.camp.map((s, i) => {
-    const movable = plans.some(p => p.from.zone === 'camp' && p.from.idx === i && p.cost <= nSupply);
-    return '<div class="camp-army' + (movable ? ' movable' : '') + '"' +
-      (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') + '>' +
-      stackHTML(game, handSuit, s.cards) + '</div>';
-  }).join('');
-  if (!a.camp.length) campHtml += '<p class="hint camp-hint">No armies yet</p>';
-  campHtml += '</div></div>';
+  let campHtml = '';
+  if (!laneOn()) { // in lane view the camp lives on the lane itself
+    campHtml = '<div class="camp-strip"><h3>Your camp</h3><div class="camp-armies">';
+    campHtml += a.camp.map((s, i) => {
+      const movable = plans.some(p => p.from.zone === 'camp' && p.from.idx === i && p.cost <= nSupply);
+      return '<div class="camp-army' + (movable ? ' movable' : '') + '"' +
+        (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') + '>' +
+        stackHTML(game, handSuit, s.cards) + '</div>';
+    }).join('');
+    if (!a.camp.length) campHtml += '<p class="hint camp-hint">No armies yet</p>';
+    campHtml += '</div></div>';
+  }
 
   let html = campHtml + '<div class="hand-block"><div class="hand-cards">';
   html += a.hand.map((card, i) => {
@@ -1208,7 +1297,11 @@ function renderSidebar() {
     return;
   }
   if (!cur.isHuman) {
-    panel.innerHTML = '<p class="prompt">' + armyName(cur.suit) + ' is moving…</p>';
+    // Context console: while the automated armies move, this space becomes
+    // a live ticker of what is happening instead of a dimmed dead zone.
+    const lines = game.log.slice(-3).map(l =>
+      '<p class="tick-line log-' + l.kind + '">' + l.msg + '</p>').join('');
+    panel.innerHTML = '<div class="ticker">' + lines + '</div>';
     return;
   }
   if (!myTurn()) {

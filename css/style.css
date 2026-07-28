@@ -1530,3 +1530,168 @@ body.app .btn.slim { font-size: 0.7rem; }
 /* Supply joins the glanceable status cluster; the hand needs no title. */
 .supply-tag { margin-left: 12px; }
 .supply-num { font-size: 0.62rem; color: var(--gold); }
+
+/* ── Lane view: interaction-first portrait board ─────────────────────── */
+body.lane-mode .board-viewport {
+  flex: none;
+  height: auto;
+  overflow: visible;
+  touch-action: auto;
+  cursor: default;
+}
+body.lane-mode .board-scale {
+  position: static;
+  transform: none !important;
+}
+body.lane-mode #bottomBar { justify-content: flex-end; }
+body.lane-mode #turnPanel { flex-wrap: wrap; justify-content: flex-end; row-gap: 0.4rem; }
+body.lane-mode #turnPanel .btn { font-size: 0.52rem; }
+body.lane-mode .action-pips { margin-bottom: 0; margin-right: auto; }
+body.lane-mode #bottomBar #handArea { flex: 0 0 auto; }
+body.lane-mode .board-wrap {
+  background: none;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+}
+body.lane-mode #board { display: block; padding: 8px 10px 4px; }
+body.lane-mode #bottomBar { flex: 1; min-height: 0; }
+body.lane-mode .hud-right .btn.slim:nth-child(2),
+body.lane-mode .hud-right .btn.slim:nth-child(3),
+body.lane-mode .hud-right .btn.slim:nth-child(4) { display: none; } /* zoom controls */
+
+.lane-city {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 3px solid var(--tint, var(--gold-dim));
+  background: #10141c;
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  padding: 7px 10px;
+  margin-bottom: 8px;
+}
+.lane-city .crown { font-size: 1.2rem; }
+.lane-city .stack { display: flex; }
+.lane-city-info {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  font-size: 0.5rem;
+}
+.lane-city-info b { color: var(--tint, var(--gold)); font-size: 0.55rem; }
+.lane-pile { color: var(--muted); }
+
+.lane-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 5px 0;
+}
+.lane-sym { color: var(--tint); width: 1.1em; text-align: center; font-size: 0.85rem; }
+.lane-posts { color: var(--gold); font-size: 0.5rem; min-width: 2.2em; letter-spacing: 0.1em; }
+.lane-posts i { font-style: normal; color: var(--muted); margin-left: 3px; }
+.lane-cell.mini {
+  flex: 1;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 0.55rem;
+}
+.lane-cell.mini.camp { border-style: solid; border-color: rgba(255, 255, 255, 0.18); color: var(--muted); }
+.lane-cell.mini.occ {
+  border: 2px solid var(--tint);
+  background: color-mix(in srgb, var(--tint) 22%, #10141c);
+}
+.lane-cell.mini.threat { animation: threatPulse 0.9s ease-in-out infinite alternate; }
+@keyframes threatPulse {
+  from { box-shadow: 0 0 0 rgba(208, 96, 80, 0); }
+  to { box-shadow: 0 0 10px rgba(208, 96, 80, 0.9); border-color: #d06050; }
+}
+
+.lane-you {
+  display: flex;
+  gap: 7px;
+  margin-top: 9px;
+}
+.lane-you .lane-cell.you {
+  flex: 1;
+  min-height: 86px;
+  border: 2px dashed color-mix(in srgb, var(--tint) 55%, transparent);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 3px 2px 5px;
+  position: relative;
+}
+.lane-you .lane-cell.you label {
+  font-size: 0.42rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  pointer-events: none;
+}
+.lane-you .lane-cell.you.occ { border-style: solid; border-color: var(--tint); background: rgba(255, 255, 255, 0.03); }
+.lane-you .lane-cell.you.gate label { color: var(--gold); }
+.lane-you .lane-cell.you.movable {
+  border-color: var(--gold);
+  border-style: solid;
+  animation: pulse 1.1s ease-in-out infinite alternate;
+  cursor: pointer;
+}
+.lane-you .stack { display: flex; }
+.lane-camp-armies { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.lane-army {
+  font-family: inherit;
+  font-size: 0.6rem;
+  color: #fff;
+  background: color-mix(in srgb, var(--tint) 30%, #10141c);
+  border: 2px solid var(--tint);
+  padding: 5px 8px;
+  cursor: pointer;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
+}
+.lane-army.movable {
+  border-color: var(--gold);
+  animation: pulse 1.1s ease-in-out infinite alternate;
+}
+.lane-empty { color: var(--muted); font-size: 0.7rem; }
+
+/* NPC-turn ticker: the console shows what's happening, not a dead zone. */
+.ticker { text-align: right; max-width: 100%; overflow: hidden; }
+.ticker .tick-line {
+  margin: 0 0 4px;
+  font-size: 0.5rem;
+  line-height: 1.7;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ticker .tick-line:last-child { color: var(--text); }
+body.lane-mode .ticker { text-align: left; }
+
+/* Bottom-sheet modals: decisions land in the thumb zone on phones. */
+@media (max-width: 760px) {
+  .modal-backdrop { align-items: flex-end; padding: 0; }
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 1.1rem 1rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+    animation: sheetUp 0.26s cubic-bezier(0.2, 0.9, 0.35, 1);
+  }
+  @keyframes sheetUp {
+    from { transform: translateY(48px); opacity: 0; }
+  }
+}

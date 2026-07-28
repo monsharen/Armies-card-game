@@ -57,7 +57,11 @@ tucked into a pause menu (Esc) and a chronicle drawer. Menus follow console
 (10-foot) rules: flat pixel chrome, one primary action per screen, a single
 always-visible focus ring driven by arrow keys, Enter/Esc or a connected
 gamepad (d-pad/stick, A select, B back), and a standing hint bar that says
-which buttons do what.
+which buttons do what. On portrait phones the 2D table gives way to an
+interaction-first **lane view** — Kartenburg as a status strip, rival armies as
+compact rows, your own road as the big tappable track — with action dialogs as
+thumb-reach bottom sheets and a live ticker narrating the automated armies'
+turns; wide screens keep the full map with the pan/zoom camera.
 
 ## Code layout
 
