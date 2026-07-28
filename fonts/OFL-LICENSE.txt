@@ -1,0 +1,4 @@
+"Press Start 2P" by CodeMan38 (cody@zone38.net).
+Licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+Bundled here (latin subset, woff2) so the game stays fully offline.

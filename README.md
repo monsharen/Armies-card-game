@@ -5,8 +5,8 @@ the deck converge on Kartenburg, the castle of cards, to capture and hold it. Pl
 runs on a deterministic script), and equally playable on a kitchen table with a real
 deck, pen and paper.
 
-**No build step, no dependencies** — plain HTML/CSS/JS. Open `index.html` in a
-browser, or host it with GitHub Pages.
+**No build step, no dependencies** — plain HTML/CSS/JS (one bundled OFL pixel
+font, fully offline). Open `index.html` in a browser, or host it with GitHub Pages.
 
 ## The game in one paragraph
 
@@ -68,6 +68,7 @@ js/engine.js    — pure game logic, no DOM (unit-testable in Node)
 js/ui.js        — rendering, input, FX queue and sound for game.html
 js/consoleui.js — focus-driven menu navigation (keyboard + gamepad) and hint bar
 js/swirl.js     — WebGL pixel-swirl background (CSS fallback)
+fonts/          — bundled Press Start 2P (latin subset, SIL OFL) — the one in-game text face
 ```
 
 The engine has no DOM dependencies, so full games can be simulated headlessly in Node

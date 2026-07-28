@@ -1460,3 +1460,69 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
   border-color: #f0cd6b;
   box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45), 0 0 7px rgba(212, 167, 44, 0.55);
 }
+
+/* ── One in-game font: Press Start 2P everywhere text is displayed ────
+ * The bitmap sprite headings stay (they are the wordmark); every piece
+ * of running text — HUD, board, hand, modals, chronicle, tooltips-in-
+ * panels — uses the same bundled pixel face (OFL, fonts/OFL-LICENSE.txt).
+ * 2P runs wide, so sizes are recalibrated per area. */
+@font-face {
+  font-family: 'Press Start 2P';
+  src: url('../fonts/press-start-2p-latin.woff2') format('woff2');
+  font-display: swap;
+}
+body.app,
+body.app button,
+body.app input {
+  font-family: 'Press Start 2P', 'Courier New', monospace;
+}
+
+body.app .btn { font-size: 0.62rem; line-height: 1.6; }
+body.app .btn.big { font-size: 0.72rem; }
+body.app .btn.slim { font-size: 0.7rem; }
+#turnPanel .btn { font-size: 0.58rem; padding: 0.5rem 0.9rem; }
+.pips-label { font-size: 0.48rem; }
+
+#hudInfo { font-size: 0.52rem; }
+.hud-chip { font-size: 0.62rem; }
+.hud-chip b { font-size: 0.72rem; }
+
+.pile-count, .pile-empty { font-size: 0.48rem; }
+.str-badge { font-size: 0.5rem; }
+.army-chip { font-size: 0.5rem; }
+.supply-note { font-size: 0.48rem; }
+
+#handArea h3, .camp-strip h3 { font-size: 0.55rem; letter-spacing: 0.08em; }
+.supply-count { font-size: 0.5rem; }
+.hand-tag { font-size: 0.42rem; letter-spacing: 0.05em; }
+#handArea .hint, #turnPanel .prompt { font-size: 0.58rem; line-height: 1.8; }
+
+.modal { font-size: 0.68rem; line-height: 1.8; }
+.modal h2 { font-size: 0.8rem; line-height: 1.6; }
+.modal .verdict { font-size: 0.72rem; line-height: 1.8; }
+.modal th, .modal td { font-size: 0.6rem; }
+#endTable .glory-src { font-size: 0.48rem; }
+#endTable .src-legend td { font-size: 0.45rem; }
+#handoffText { font-size: 0.75rem; line-height: 2.1; }
+
+.modal.action-modal h2 { font-size: 0.75rem; }
+.am-option { font-size: 0.62rem; line-height: 1.7; }
+.am-option .am-sub { font-size: 0.52rem; line-height: 1.8; }
+
+.howto-frame { font-size: 0.65rem; }
+#howtoBody { font-size: 0.6rem; line-height: 1.95; }
+.ht-actions { font-size: 0.55rem; line-height: 1.9; }
+.ht-card { font-size: 0.45rem; }
+.ht-vs-label { font-size: 0.7rem; }
+
+.log-panel p { font-size: 0.52rem; line-height: 1.9; }
+#logDrawer { font-size: 0.6rem; }
+
+#tutorBox .tut-text { font-size: 0.55rem; line-height: 2; }
+#tutorBox .tut-actions .btn { font-size: 0.55rem; }
+
+#toast { font-size: 0.6rem; line-height: 1.7; }
+.duel-chip { font-size: 0.5rem; }
+.fx-float { font-size: 1rem; }
+#hintBar { font-size: 0.5rem; }
+#hintBar .key { font-size: 0.55rem; }
