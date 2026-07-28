@@ -1159,9 +1159,7 @@ function renderHand() {
   if (!a.camp.length) campHtml += '<p class="hint camp-hint">No armies yet</p>';
   campHtml += '</div></div>';
 
-  let html = campHtml + '<div class="hand-block"><h3>' + armyName(handSuit) + ' — your hand' +
-    ' <span class="supply-count">⛽ ' + nSupply + ' supply</span></h3>' +
-    '<div class="hand-cards">';
+  let html = campHtml + '<div class="hand-block"><div class="hand-cards">';
   html += a.hand.map((card, i) => {
     const own = card.suit === handSuit;
     const classes = [];
@@ -1223,8 +1221,10 @@ function renderSidebar() {
   for (let i = 0; i < ACTIONS_PER_TURN; i++) {
     pips += '<span class="pip' + (i < game.actionsLeft ? ' on' : '') + '"></span>';
   }
-  panel.innerHTML = '<div class="action-pips" title="Actions left this turn">' +
-    '<span class="pips-label">Actions</span>' + pips + '</div>' +
+  panel.innerHTML = '<div class="action-pips" title="Actions left this turn · supply in hand">' +
+    '<span class="pips-label">Actions</span>' + pips +
+    '<span class="pips-label supply-tag">Supply</span><span class="supply-num">' +
+    supplyIndices(cur).length + '</span></div>' +
     (canTrade ? '<button class="btn" onclick="onTrade()" title="Trade 2 supply for 1 fresh card">Trade</button>' : '') +
     '<button class="btn" onclick="onEndTurn()" title="Hold position and end your turn">End turn</button>';
 }

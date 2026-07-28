@@ -1526,3 +1526,7 @@ body.app .btn.slim { font-size: 0.7rem; }
 .fx-float { font-size: 1rem; }
 #hintBar { font-size: 0.5rem; }
 #hintBar .key { font-size: 0.55rem; }
+
+/* Supply joins the glanceable status cluster; the hand needs no title. */
+.supply-tag { margin-left: 12px; }
+.supply-num { font-size: 0.62rem; color: var(--gold); }
