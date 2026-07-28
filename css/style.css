@@ -1371,3 +1371,11 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
   font-size: 0.8rem;
   text-transform: none;
 }
+
+/* Menu buttons: labels in the Kartenburg bitmap font. White glyphs go
+ * black whenever the button surface turns gold (primary, hover, focus). */
+.btn .px-word { transform: translateY(1px); pointer-events: none; }
+.btn.primary .px-word img.pxl,
+.btn:hover:not(:disabled) .px-word img.pxl,
+.btn:active:not(:disabled) .px-word img.pxl,
+.btn.kb-focus .px-word img.pxl { filter: brightness(0); }

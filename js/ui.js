@@ -2056,7 +2056,7 @@ const sfx = (() => {
 
 function updateMuteBtns() {
   document.querySelectorAll('.muteBtn').forEach(b => {
-    b.textContent = sfx.isMuted() ? '🔇 Sound off' : '🔊 Sound on';
+    b.innerHTML = pixelWordHTML(sfx.isMuted() ? 'Sound off' : 'Sound on', 2, '#ffffff');
   });
 }
 
