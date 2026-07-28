@@ -1583,85 +1583,79 @@ body.lane-mode .hud-right .btn.slim:nth-child(4) { display: none; } /* zoom cont
 .lane-city-info b { color: var(--tint, var(--gold)); font-size: 0.55rem; }
 .lane-pile { color: var(--muted); }
 
-.lane-row {
+.lane-cols {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.lane-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lane-col.mine {
+  background: color-mix(in srgb, var(--tint) 9%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--tint) 45%, transparent);
+  outline-offset: 2px;
+}
+.lane-head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin: 5px 0;
+  justify-content: center;
+  gap: 5px;
+  min-height: 20px;
 }
-.lane-sym { color: var(--tint); width: 1.1em; text-align: center; font-size: 0.85rem; }
-.lane-posts { color: var(--gold); font-size: 0.5rem; min-width: 2.2em; letter-spacing: 0.1em; }
+.lane-sym { color: var(--tint); font-size: 0.8rem; }
+.lane-posts { color: var(--gold); font-size: 0.48rem; letter-spacing: 0.1em; }
 .lane-posts i { font-style: normal; color: var(--muted); margin-left: 3px; }
-.lane-cell.mini {
-  flex: 1;
-  height: 26px;
-  display: inline-flex;
+
+.lane-slot {
+  min-height: 58px;
+  border: 2px dashed rgba(255, 255, 255, 0.13);
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 2px dashed rgba(255, 255, 255, 0.14);
-  color: #fff;
-  font-size: 0.55rem;
+  gap: 3px;
+  padding: 3px 1px;
+  position: relative;
 }
-.lane-cell.mini.camp { border-style: solid; border-color: rgba(255, 255, 255, 0.18); color: var(--muted); }
-.lane-cell.mini.occ {
-  border: 2px solid var(--tint);
-  background: color-mix(in srgb, var(--tint) 22%, #10141c);
+.lane-slot label {
+  font-size: 0.4rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  pointer-events: none;
 }
-.lane-cell.mini.threat { animation: threatPulse 0.9s ease-in-out infinite alternate; }
+.lane-slot.gate label { color: var(--gold); }
+.lane-slot.occ { border-style: solid; border-color: var(--tint); background: rgba(255, 255, 255, 0.03); }
+.lane-slot.movable {
+  border-color: var(--gold);
+  border-style: solid;
+  cursor: pointer;
+  animation: pulse 1.1s ease-in-out infinite alternate;
+}
+.lane-slot.threat { animation: threatPulse 0.9s ease-in-out infinite alternate; }
 @keyframes threatPulse {
   from { box-shadow: 0 0 0 rgba(208, 96, 80, 0); }
   to { box-shadow: 0 0 10px rgba(208, 96, 80, 0.9); border-color: #d06050; }
 }
+.lane-slot.camp { min-height: 64px; justify-content: flex-start; }
+.lane-camp-stack { cursor: default; }
+.lane-camp-stack.movable {
+  cursor: pointer;
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  animation: pulse 1.1s ease-in-out infinite alternate;
+}
 
-.lane-you {
-  display: flex;
-  gap: 7px;
-  margin-top: 9px;
-}
-.lane-you .lane-cell.you {
-  flex: 1;
-  min-height: 86px;
-  border: 2px dashed color-mix(in srgb, var(--tint) 55%, transparent);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  padding: 3px 2px 5px;
-  position: relative;
-}
-.lane-you .lane-cell.you label {
-  font-size: 0.42rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  pointer-events: none;
-}
-.lane-you .lane-cell.you.occ { border-style: solid; border-color: var(--tint); background: rgba(255, 255, 255, 0.03); }
-.lane-you .lane-cell.you.gate label { color: var(--gold); }
-.lane-you .lane-cell.you.movable {
-  border-color: var(--gold);
-  border-style: solid;
-  animation: pulse 1.1s ease-in-out infinite alternate;
-  cursor: pointer;
-}
-.lane-you .stack { display: flex; }
-.lane-camp-armies { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
-.lane-army {
-  font-family: inherit;
-  font-size: 0.6rem;
-  color: #fff;
-  background: color-mix(in srgb, var(--tint) 30%, #10141c);
-  border: 2px solid var(--tint);
-  padding: 5px 8px;
-  cursor: pointer;
-  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5);
-}
-.lane-army.movable {
-  border-color: var(--gold);
-  animation: pulse 1.1s ease-in-out infinite alternate;
-}
-.lane-empty { color: var(--muted); font-size: 0.7rem; }
+/* Real cards in the slots: overlapped minis so a stack reads at a glance. */
+.lane-slot .stack { display: flex; align-items: center; }
+.lane-slot .stack .pcard { margin-left: -16px; }
+.lane-slot .stack .pcard:first-child { margin-left: 0; }
+.lane-slot .stack .str-badge { margin-left: -6px; }
 
 /* NPC-turn ticker: the console shows what's happening, not a dead zone. */
 .ticker { text-align: right; max-width: 100%; overflow: hidden; }

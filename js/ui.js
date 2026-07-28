@@ -1113,43 +1113,37 @@ function renderLaneBoard() {
     '<span id="discardPile" class="lane-pile">Waste ' + game.discard.length + '</span>' +
     '</div></div>';
 
+  // Four vertical lanes under the city: gate at the top, camp at the bottom,
+  // so stacks visibly climb toward Kartenburg. Slots hold the real cards.
+  html += '<div class="lane-cols">';
   for (const suit of SUITS) {
-    if (suit === you) continue;
     const a = game.armies[suit];
-    const camp = a.camp.map(s => stackSum(s.cards)).join('·');
-    html += '<div class="lane-row" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + '">' +
+    const mine = suit === you;
+    html += '<div class="lane-col' + (mine ? ' mine' : '') + '" style="--tint:' + SUIT_META[suit].tint + '">' +
+      '<div class="lane-head" title="' + armyName(suit) + '">' +
       '<span class="lane-sym">' + SUIT_META[suit].symbol + '</span>' +
       '<span class="lane-posts">' + (a.posts.queen ? 'Q' : '') + (a.posts.king ? 'K' : '') +
-      (!a.isHuman && a.supply ? '<i>' + a.supply + '</i>' : '') + '</span>' +
-      '<span class="lane-cell mini camp" data-cell="camp-' + suit + '" title="' + armyName(suit) + ' camp">' +
-      (camp || '·') + '</span>';
-    for (let i = 0; i < ROAD_LEN; i++) {
+      (!a.isHuman && a.supply ? '<i>' + a.supply + '</i>' : '') + '</span></div>';
+    for (let i = ROAD_LEN - 1; i >= 0; i--) {
       const stack = a.road[i];
-      html += '<span class="lane-cell mini' + (stack ? ' occ' : '') +
-        (stack && i === ROAD_LEN - 1 ? ' threat' : '') + '" data-cell="road-' + suit + '-' + i + '">' +
-        (stack ? effStrength(game, suit, stack.cards) : '') + '</span>';
+      const movable = mine && can('road', i);
+      html += '<div class="lane-slot' + (stack ? ' occ' : '') + (movable ? ' movable' : '') +
+        (i === ROAD_LEN - 1 ? ' gate' : '') +
+        (stack && i === ROAD_LEN - 1 && !mine ? ' threat' : '') +
+        '" data-cell="road-' + suit + '-' + i + '"' +
+        (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
+        (i === ROAD_LEN - 1 ? '<label>Gate</label>' : '') +
+        (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }
+    html += '<div class="lane-slot camp" data-cell="camp-' + suit + '"><label>Camp</label>' +
+      a.camp.map((s, i) => {
+        const movable = mine && can('camp', i);
+        return '<div class="lane-camp-stack' + (movable ? ' movable' : '') + '"' +
+          (mine && active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') +
+          ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
+          stackHTML(game, suit, s.cards) + '</div>';
+      }).join('') + '</div>';
     html += '</div>';
-  }
-
-  const ya = game.armies[you];
-  html += '<div class="lane-you" style="--tint:' + SUIT_META[you].tint + '">' +
-    '<div class="lane-cell you lane-camp" data-cell="camp-' + you + '">' +
-    '<label>Camp' + (ya.posts.queen ? ' Q' : '') + (ya.posts.king ? ' K' : '') + '</label>' +
-    '<div class="lane-camp-armies">' +
-    (ya.camp.map((s, i) =>
-      '<button class="lane-army' + (can('camp', i) ? ' movable' : '') + '"' +
-      (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') +
-      ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
-      stackSum(s.cards) + '</button>').join('') || '<span class="lane-empty">–</span>') +
-    '</div></div>';
-  for (let i = 0; i < ROAD_LEN; i++) {
-    const stack = ya.road[i];
-    html += '<div class="lane-cell you' + (stack ? ' occ' : '') + (can('road', i) ? ' movable' : '') +
-      (i === ROAD_LEN - 1 ? ' gate' : '') + '" data-cell="road-' + you + '-' + i + '"' +
-      ' onclick="onCellClick(\'road\',\'' + you + '\',' + i + ')">' +
-      '<label>' + (i === ROAD_LEN - 1 ? 'Gate' : i + 1) + '</label>' +
-      (stack ? stackHTML(game, you, stack.cards) : '') + '</div>';
   }
   html += '</div>';
   document.getElementById('board').innerHTML = html;
