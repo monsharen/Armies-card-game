@@ -38,7 +38,8 @@ function playerLabel(suit) {
 
 /* ── Game lifecycle ───────────────────────────────────────────────────── */
 
-function newGame(numHumans) {
+function newGame(numHumans, tutorialDeck) {
+  if (!tutorialDeck) TUT.active = false; // a normal game ends any tutorial
   ui.numHumans = numHumans;
   clearTimeout(ui.npcTimer);
   ui.npcTimer = null;
@@ -47,7 +48,7 @@ function newGame(numHumans) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
-  game = createGame(numHumans);
+  game = createGame(numHumans, tutorialDeck);
   sfx.startMusic();
   document.body.classList.add('playing');
   document.getElementById('setup').classList.add('hidden');
@@ -73,6 +74,9 @@ function backToSetup() {
   clearTimeout(ui.npcTimer);
   ui.npcTimer = null;
   game = null;
+  TUT.active = false;
+  document.getElementById('tutorBox').classList.add('hidden');
+  showMainMenu();
   document.body.classList.remove('playing');
   document.getElementById('endModal').classList.add('hidden');
   document.getElementById('pauseMenu').classList.add('hidden');
@@ -117,6 +121,155 @@ function buildTitleFx() {
       'px;--spin:' + (Math.random() * 50 - 25).toFixed(0) + 'deg">' + cardBackHTML() + '</span>';
   }
   holder.innerHTML = html;
+}
+
+/* ── Main menu navigation ─────────────────────────────────────────────── */
+
+function showPlayerSelect() {
+  document.getElementById('menuMain').classList.add('hidden');
+  document.getElementById('menuPlayers').classList.remove('hidden');
+  sfx.flip();
+}
+
+function showMainMenu() {
+  const main = document.getElementById('menuMain');
+  if (main) {
+    main.classList.remove('hidden');
+    document.getElementById('menuPlayers').classList.add('hidden');
+  }
+}
+
+/* ── Tutorial: a scripted opening as Hearts with a step-by-step coach ── *
+ * The deck is stacked so the first three rounds are deterministic enough
+ * to teach deploy → reinforce → march → assault, then the coach hands the
+ * war over to the player. Steps advance on a Next click (informational)
+ * or when a condition on the game state comes true (action steps). */
+
+const TUT = { active: false, step: 0 };
+
+function tutorialDeck() {
+  const deck = makeDeck();
+  const take = (rank, suit) => {
+    const i = deck.findIndex(c => c.rank === rank && c.suit === suit);
+    return deck.splice(i, 1)[0];
+  };
+  // Draw order: your hand (4), the garrison (2), then round by round.
+  const script = [
+    ['9', 'hearts'], ['7', 'hearts'], ['8', 'clubs'], ['6', 'diamonds'],  // hand
+    ['2', 'spades'], ['3', 'clubs'],                                      // garrison (str 5)
+    ['5', 'diamonds'], ['4', 'spades'],                                   // your turn-1 draw
+    ['5', 'spades'], ['6', 'spades'],                                     // spades round 1
+    ['4', 'diamonds'], ['7', 'diamonds'],                                 // diamonds round 1
+    ['5', 'clubs'], ['7', 'clubs'],                                       // clover round 1
+    ['9', 'diamonds'], ['10', 'spades'],                                  // your turn-2 draw
+    ['8', 'spades'], ['2', 'diamonds'],                                   // spades round 2
+    ['8', 'diamonds'], ['2', 'clubs'],                                    // diamonds round 2
+    ['9', 'clubs'], ['3', 'diamonds'],                                    // clover round 2
+    ['10', 'diamonds'], ['3', 'spades'],                                  // your turn-3 draw
+  ].map(([r, s]) => take(r, s));
+  for (let i = deck.length - 1; i > 0; i--) {  // shuffle the remainder
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck.concat(script.reverse()); // pop() draws from the end
+}
+
+function tutHandSlot(rank) {
+  if (!game) return null;
+  const i = game.armies.hearts.hand.findIndex(c => c.suit === 'hearts' && c.rank === rank);
+  return i === -1 ? null : '#handArea .hand-slot[data-slot="' + i + '"]';
+}
+
+const TUTORIAL_STEPS = [
+  { text: 'Welcome, commander of <b>Hearts ♥</b>! Kartenburg is won with <b>glory</b>: ' +
+      'most glory after two seasons of the deck takes the war. The richest prize sits at ' +
+      'the center of the board — the city itself.', hl: () => '[data-cell="citadel"]' },
+  { text: '<b>Kartenburg</b> is held by a mercenary garrison (strength 5 today). ' +
+      'Your road to its gate starts at your camp. <b>Capture the city: +5 glory.</b> ' +
+      'Hold it: +1 every turn, +2 when a season turns.', hl: () => '[data-cell="camp-hearts"]' },
+  { text: 'Your hand: <b>♥ cards fight for you</b>. Cards of other suits are <b>supply</b> — ' +
+      'fuel for marching, not soldiers. You draw 2 at the start of each turn and take up to ' +
+      '<b>2 actions</b>.', hl: () => '#handArea' },
+  { text: '<b>Action 1 — Deploy.</b> Tap your <b>9♥</b> and <em>found a new army</em> in camp.',
+    hl: () => tutHandSlot('9'),
+    when: g => g.armies.hearts.camp.reduce((n, s) => n + s.cards.length, 0) >= 1 },
+  { text: '<b>Action 2 — Reinforce.</b> Armies are <b>stacks</b> of up to 3 cards; their strength ' +
+      'is the sum. Tap your <b>7♥</b> and add it to your army (or found a second one — your call).',
+    hl: () => tutHandSlot('7'),
+    when: g => g.armies.hearts.camp.reduce((n, s) => n + s.cards.length, 0) +
+      g.armies.hearts.road.filter(Boolean).length >= 2 },
+  { text: 'Both actions spent — the <b>automated armies</b> now move. They flip 2 cards each turn: ' +
+      'their own suit joins their camp, anything else piles up as supply, and the moment the pile ' +
+      'covers their front army\'s march cost, <b>it marches</b>. Watch them go.' },
+  { text: '<b>March!</b> Tap your army, then confirm. A march costs <b>1 supply per card in the ' +
+      'stack</b> — your off-suit cards are spent automatically. Advance one space per action and ' +
+      'reach the <b>gate</b> (the space beside Kartenburg). It will take a couple of turns.',
+    hl: () => '[data-cell="road-hearts-2"]',
+    when: g => !!g.armies.hearts.road[2] || g.garrison.owner === 'hearts' },
+  { text: 'You stand at the gate! <b>Assault:</b> march once more to storm the city. Stack total vs ' +
+      'garrison total — <b>defender wins ties</b>, and the winner loses its weakest card as ' +
+      'casualties. Your army is stronger. Strike!',
+    hl: () => '[data-cell="citadel"]',
+    when: g => g.garrison.owner === 'hearts' },
+  { text: '<b>KARTENBURG IS YOURS!</b> +5 glory, and the city pays <b>+1 tribute</b> at the start ' +
+      'of each of your turns — +2 more if you hold it when the season turns. But the garrison ' +
+      'cannot be reinforced: it stands alone until it falls.' },
+  { text: 'Beware the <b>Jacks</b>: raiders that snipe the weakest card of a road army, or ' +
+      'infiltrate a camp to strike a <b>Banner (Q)</b> or <b>General (K)</b>. When <em>you</em> are ' +
+      'attacked, you may commit one ♥ card from hand as a <b>reserve</b> — its strength joins the ' +
+      'defense, then the card is lost.' },
+  { text: 'Two more tools: your <b>Queen</b> posts in camp for +2 to all your battles, your ' +
+      '<b>King</b> makes marches cost 1 less. Drowning in supply? <b>🍂 Forage</b> trades 2 supply ' +
+      'for a fresh card. When the deck empties, the round finishes, the season turns and the ' +
+      'fallen reshuffle.' },
+  { text: 'The war is yours now, commander. Rivals will besiege your walls — raid them, rebuild, ' +
+      'and hold the crown. <b>Most glory after season 2 wins.</b> Good luck!', last: true },
+];
+
+function startTutorial() {
+  TUT.active = true;
+  TUT.step = 0;
+  newGame(1, tutorialDeck());
+}
+
+function tutNext() {
+  if (!TUT.active) return;
+  const step = TUTORIAL_STEPS[TUT.step];
+  if (step && step.last) { tutSkip(); return; }
+  TUT.step++;
+  sfx.flip();
+  render();
+}
+
+function tutSkip() {
+  TUT.active = false;
+  document.getElementById('tutorBox').classList.add('hidden');
+  document.querySelectorAll('.tut-hl').forEach(el => el.classList.remove('tut-hl'));
+  render();
+}
+
+function renderTutorial() {
+  const box = document.getElementById('tutorBox');
+  if (!TUT.active || !game || game.over) {
+    box.classList.add('hidden');
+    return;
+  }
+  // Advance through any action steps whose condition is already met.
+  while (TUT.step < TUTORIAL_STEPS.length) {
+    const s = TUTORIAL_STEPS[TUT.step];
+    if (s.when && s.when(game)) { TUT.step++; sfx.coin(); continue; }
+    break;
+  }
+  if (TUT.step >= TUTORIAL_STEPS.length) { tutSkip(); return; }
+  const step = TUTORIAL_STEPS[TUT.step];
+  box.classList.remove('hidden');
+  document.getElementById('tutText').innerHTML = step.text;
+  const nextBtn = document.getElementById('tutNextBtn');
+  nextBtn.style.display = step.when ? 'none' : '';
+  nextBtn.textContent = step.last ? 'Finish ✔' : 'Next ▶';
+  document.querySelectorAll('.tut-hl').forEach(el => el.classList.remove('tut-hl'));
+  const sel = step.hl && step.hl();
+  if (sel) document.querySelectorAll(sel).forEach(el => el.classList.add('tut-hl'));
 }
 
 const HOWTO_PAGES = [
@@ -723,6 +876,7 @@ function render() {
   renderHandoff();
   renderActionModal();
   renderTurnBanner();
+  renderTutorial();
   updateCamera(true);
 }
 
