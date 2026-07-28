@@ -222,7 +222,7 @@ const TUTORIAL_STEPS = [
       'attacked, you may commit one ♥ card from hand as a <b>reserve</b> — its strength joins the ' +
       'defense, then the card is lost.' },
   { text: 'Two more tools: your <b>Queen</b> posts in camp for +2 to all your battles, your ' +
-      '<b>King</b> makes marches cost 1 less. Drowning in supply? <b>🍂 Forage</b> trades 2 supply ' +
+      '<b>King</b> makes marches cost 1 less. Drowning in supply? <b>🤝 Trade</b> swaps 2 supply ' +
       'for a fresh card. When the deck empties, the round finishes, the season turns and the ' +
       'fallen reshuffle.' },
   { text: 'The war is yours now, commander. Rivals will besiege your walls — raid them, rebuild, ' +
@@ -300,7 +300,7 @@ const HOWTO_PAGES = [
       '<div class="ht-row"><div class="ht-card">' + pcardHTML({ suit: 'clubs', rank: '8', id: '8-clubs' }) +
       '<span>Supply</span></div><p class="ht-side">Cards of <b>other suits</b> are supply — ' +
       'each march costs 1 supply per card in the marching stack. Heavy armies are slow. ' +
-      'Too much supply? <b>Forage</b>: trade 2 supply for a fresh card.</p></div>',
+      'Too much supply? <b>Trade</b>: swap 2 supply for a fresh card.</p></div>',
   },
   {
     title: 'Your Turn',
@@ -312,7 +312,7 @@ const HOWTO_PAGES = [
       'march from the gate to <b>assault Kartenburg</b>.</div>' +
       '<div><b>🗡️ Raid</b><br>Your Jack strikes the <b>weakest card</b> of any enemy army on a road — ' +
       'or infiltrates an enemy camp to strike its <b>Banner or General</b> — then withdraws.</div>' +
-      '<div><b>🍂 Forage</b><br>Discard 2 supply to draw 1 card.</div>' +
+      '<div><b>🤝 Trade</b><br>Swap 2 supply for 1 fresh card.</div>' +
       '</div>',
   },
   {
@@ -768,9 +768,9 @@ function modalRaidPost(suit, post) {
   afterEngineCall();
 }
 
-function onForage() {
+function onTrade() {
   if (!myTurn() || mustDiscard() || ui.modal) return;
-  const res = forage(game);
+  const res = trade(game);
   if (!res.ok) { toast(res.msg); return; }
   afterEngineCall();
 }
@@ -1216,10 +1216,10 @@ function renderSidebar() {
     panel.innerHTML = '<p class="prompt">Waiting for ' + playerLabel(cur.suit) + '…</p>';
     return;
   }
-  const canForage = supplyIndices(cur).length >= 2 && game.deck.length > 0;
+  const canTrade = supplyIndices(cur).length >= 2 && game.deck.length > 0;
   panel.innerHTML = '<p class="prompt"><strong>' + game.actionsLeft + '</strong> action' +
     (game.actionsLeft === 1 ? '' : 's') + ' left — tap a card to deploy, an army to march.</p>' +
-    (canForage ? '<button class="btn" onclick="onForage()" title="Discard 2 supply to draw 1 card">🍂 Forage</button>' : '') +
+    (canTrade ? '<button class="btn" onclick="onTrade()" title="Trade 2 supply for 1 fresh card">🤝 Trade</button>' : '') +
     '<button class="btn" onclick="onEndTurn()">Hold position</button>';
 }
 

@@ -16,7 +16,7 @@ champion (11), the Jack a raider that snipes the weakest card out of an enemy st
 or infiltrates a camp to strike a Banner or General — the Queen a banner (+2 to all
 your battles) and the King a general (marches cost 1 less). Off-suit cards are
 supply — a march costs one per card in the stack, so heavy hosts move slowly (too
-much supply can be foraged: 2 supply → 1 card). Armies merge on the road and storm
+much supply can be traded away: 2 supply → 1 card). Armies merge on the road and storm
 Kartenburg: battles compare stack totals, defender wins ties, the winner loses its
 weakest card as casualties, and a defender may commit one reserve card from hand
 before any battle resolves. Kartenburg pays its holder +1 glory every turn and +2
@@ -75,7 +75,7 @@ while (!state.over) engine.npcFlip(state);
 ```
 
 Human seats are driven with `engine.deployCard`, `engine.march`, `engine.raid`,
-`engine.raidPost`, `engine.forage`, `engine.discardFromHand` and `engine.passTurn`;
+`engine.raidPost`, `engine.trade`, `engine.discardFromHand` and `engine.passTurn`;
 pending defenses (reserve decisions) resolve via `engine.resolvePendingBattle`.
 
 ## Hosting on GitHub Pages
