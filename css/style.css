@@ -1379,3 +1379,84 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
 .btn:hover:not(:disabled) .px-word img.pxl,
 .btn:active:not(:disabled) .px-word img.pxl,
 .btn.kb-focus .px-word img.pxl { filter: brightness(0); }
+
+/* ── Main menu in the title screen's style: black, stars, scanlines ──── */
+#setup {
+  position: relative;
+  background: #000;
+  overflow: hidden;
+}
+#setup::before { /* vignette */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.75) 100%);
+  pointer-events: none;
+  z-index: 3;
+}
+#setup::after { /* rolling CRT scanlines */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.32) 0 2px, transparent 2px 4px);
+  animation: scanRoll 9s linear infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+#menuFx { position: absolute; inset: 0; pointer-events: none; }
+#setup h2, #setup .menu-list { position: relative; z-index: 5; }
+#setup h2 .px-word {
+  filter: drop-shadow(-2px 0 rgba(255, 40, 70, 0.55)) drop-shadow(2px 0 rgba(40, 200, 255, 0.55))
+    drop-shadow(0 5px 0 rgba(0, 0, 0, 0.7));
+  animation: titleGlitch 5s steps(1) infinite;
+}
+#setup .menu-list { margin-top: 2.2rem; gap: 1.1rem; width: auto; align-items: center; }
+#setup .menu-divider { width: 120px; height: 2px; background: #23272f; margin: 0.2rem 0; }
+
+/* Menu items: bare pixel words on black — dim until focused, then lit. */
+#setup .menu-list .btn,
+#setup .menu-list .btn.primary {
+  background: none;
+  border: none;
+  box-shadow: none;
+  outline: none;
+  padding: 0.35rem 1rem;
+  width: auto;
+}
+#setup .menu-list .btn .px-word img.pxl { filter: none; opacity: 0.45; transition: opacity 0.12s; }
+#setup .menu-list .btn:hover:not(:disabled) .px-word img.pxl,
+#setup .menu-list .btn.kb-focus .px-word img.pxl {
+  opacity: 1;
+  filter: sepia(1) saturate(4) hue-rotate(-8deg) brightness(1.05)
+    drop-shadow(0 0 7px rgba(212, 167, 44, 0.8));
+}
+#setup .menu-list .btn:active:not(:disabled) { transform: none; box-shadow: none; }
+#setup .menu-list .btn.kb-focus { outline: none; }
+
+/* ── In-game turn panel: glanceable, no prose ────────────────────────── */
+.action-pips {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 0.5rem;
+  justify-content: flex-end;
+}
+.pips-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-right: 3px;
+}
+.pip {
+  width: 13px;
+  height: 13px;
+  background: #1a1f28;
+  border: 2px solid #454f61;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45);
+}
+.pip.on {
+  background: var(--gold);
+  border-color: #f0cd6b;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.45), 0 0 7px rgba(212, 167, 44, 0.55);
+}

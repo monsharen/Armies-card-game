@@ -20,7 +20,8 @@
     </div>
 
     <div id="setup" class="hidden">
-      <h2 class="pixel-title wave" data-scale="4">Kartenburg</h2>
+      <div id="menuFx" aria-hidden="true"></div>
+      <h2 class="pixel-title wave" data-scale="5">Kartenburg</h2>
       <div class="menu-list" id="menuMain">
         <button class="btn primary big" onclick="showPlayerSelect()"><span class="pixel-title" data-scale="2" data-color="#ffffff">New Game</span></button>
         <button class="btn big" onclick="startTutorial()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Tutorial</span></button>
@@ -30,8 +31,6 @@
         <button class="btn muteBtn" onclick="toggleSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound on</span></button>
       </div>
       <div class="menu-list hidden" id="menuPlayers">
-        <p class="seat-note">Four armies always fight — ♥ Hearts, ♠ Spades, ♦ Diamonds and
-        ♣ Clover. Armies without a player run themselves.</p>
         <button class="btn primary big" onclick="newGame(1)"><span class="pixel-title" data-scale="2" data-color="#ffffff">1 Player</span></button>
         <button class="btn big" onclick="newGame(2)"><span class="pixel-title" data-scale="2" data-color="#ffffff">2 Players</span></button>
         <button class="btn big" onclick="newGame(3)"><span class="pixel-title" data-scale="2" data-color="#ffffff">3 Players</span></button>
