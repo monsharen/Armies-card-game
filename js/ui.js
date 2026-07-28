@@ -105,9 +105,10 @@ function enterMenu() {
   }, 420);
 }
 
-/* Retro title dressing: twinkling pixel stars and drifting card backs. */
-function buildTitleFx() {
-  const holder = document.getElementById('titleFx');
+/* Retro title dressing: twinkling pixel stars and drifting card backs.
+ * Used by both the title screen and the main menu, which share the look. */
+function buildTitleFx(holderId) {
+  const holder = document.getElementById(holderId || 'titleFx');
   if (!holder) return;
   let html = '';
   for (let i = 0; i < 46; i++) {
@@ -1216,11 +1217,16 @@ function renderSidebar() {
     panel.innerHTML = '<p class="prompt">Waiting for ' + playerLabel(cur.suit) + '…</p>';
     return;
   }
+  // Glanceable status, no instructional prose: action pips + labeled buttons.
   const canTrade = supplyIndices(cur).length >= 2 && game.deck.length > 0;
-  panel.innerHTML = '<p class="prompt"><strong>' + game.actionsLeft + '</strong> action' +
-    (game.actionsLeft === 1 ? '' : 's') + ' left — tap a card to deploy, an army to march.</p>' +
-    (canTrade ? '<button class="btn" onclick="onTrade()" title="Trade 2 supply for 1 fresh card">🤝 Trade</button>' : '') +
-    '<button class="btn" onclick="onEndTurn()">Hold position</button>';
+  let pips = '';
+  for (let i = 0; i < ACTIONS_PER_TURN; i++) {
+    pips += '<span class="pip' + (i < game.actionsLeft ? ' on' : '') + '"></span>';
+  }
+  panel.innerHTML = '<div class="action-pips" title="Actions left this turn">' +
+    '<span class="pips-label">Actions</span>' + pips + '</div>' +
+    (canTrade ? '<button class="btn" onclick="onTrade()" title="Trade 2 supply for 1 fresh card">Trade</button>' : '') +
+    '<button class="btn" onclick="onEndTurn()" title="Hold position and end your turn">End turn</button>';
 }
 
 function renderHandoff() {
@@ -2069,6 +2075,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateMuteBtns();
   document.body.classList.add('pixel-mode');
   const title = document.getElementById('titleScreen');
+  buildTitleFx('menuFx');
   if (title) {
     buildTitleFx();
     // Belt and braces for iOS Safari: some versions only deliver taps
