@@ -571,13 +571,13 @@ function raidPost(state, handIdx, targetSuit, post) {
   return { ok: true };
 }
 
-/* Forage: burn 2 supply for a fresh card — a sink for supply-flooded hands. */
-function forage(state) {
+/* Trade: swap 2 supply for a fresh card — a sink for supply-flooded hands. */
+function trade(state) {
   const g = humanGuard(state);
   if (!g.ok) return g;
   const army = g.army;
   const supplies = supplyIndices(army);
-  if (supplies.length < 2) return { ok: false, msg: 'Foraging costs 2 supply.' };
+  if (supplies.length < 2) return { ok: false, msg: 'Trading costs 2 supply.' };
   for (const i of [supplies[1], supplies[0]]) {
     state.discard.push(army.hand.splice(i, 1)[0]);
   }
@@ -587,7 +587,7 @@ function forage(state) {
     army.hand.push(card);
     pushEvent(state, { type: 'draw', suit: army.suit, count: 1 });
   }
-  addLog(state, 'player', armyName(army.suit) + ' forages: 2 supply traded for ' +
+  addLog(state, 'player', armyName(army.suit) + ' trades 2 supply for ' +
     (card ? 'a fresh card' : 'nothing — the deck is spent') + '.');
   spendAction(state);
   return { ok: true };
@@ -736,7 +736,7 @@ if (typeof module !== 'undefined') {
     createGame, currentArmy, qBonus, stackSum, stackLabel, effStrength, marchCost,
     supplyIndices, computeMarchPlans,
     deployCard, march, raid, passTurn, npcFlip, discardFromHand,
-    raidPost, forage, resolvePendingBattle, reserveOptions, postRaidStrengths,
+    raidPost, trade, resolvePendingBattle, reserveOptions, postRaidStrengths,
     SEAT_BONUS,
   };
 }
