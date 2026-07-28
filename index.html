@@ -23,7 +23,7 @@
       <h2 class="pixel-title wave" data-scale="4">Kartenburg</h2>
       <div class="menu-list" id="menuMain">
         <button class="btn primary big" onclick="showPlayerSelect()">⚔️ New Game</button>
-        <button class="btn primary big" onclick="startTutorial()">🎓 Tutorial</button>
+        <button class="btn big" onclick="startTutorial()">🎓 Tutorial</button>
         <span class="menu-divider"></span>
         <button class="btn" onclick="openHowto(false)">📖 How to Play</button>
         <button class="btn" onclick="window.open('reference.html', '_blank')">🖨️ Print &amp; Play</button>
@@ -33,7 +33,7 @@
         <p class="seat-note">Four armies always fight — ♥ Hearts, ♠ Spades, ♦ Diamonds and
         ♣ Clover. Armies without a player run themselves.</p>
         <button class="btn primary big" onclick="newGame(1)">⚔️ 1 Player</button>
-        <button class="btn primary big" onclick="newGame(2)">⚔️ 2 Players</button>
+        <button class="btn big" onclick="newGame(2)">⚔️ 2 Players</button>
         <button class="btn big" onclick="newGame(3)">⚔️ 3 Players</button>
         <button class="btn big" onclick="newGame(4)">⚔️ 4 Players</button>
         <span class="menu-divider"></span>
@@ -141,10 +141,13 @@
 
   <div id="toast"></div>
 
+  <div id="hintBar" class="hidden"></div>
+
   <script src="js/swirl.js"></script>
   <script src="js/pixeltext.js"></script>
   <script src="js/cards.js"></script>
   <script src="js/engine.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/consoleui.js"></script>
 </body>
 </html>

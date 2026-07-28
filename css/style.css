@@ -1283,3 +1283,91 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
   .duel-side { min-width: 72px; }
   .duel-chips { max-width: 100px; }
 }
+
+/* ── Console restyle: flat, pixely, focus-driven (Xbox 10-foot rules) ──
+ * One visual language for every control: flat fills, hard 2px borders,
+ * hard offset shadows, uppercase labels, and a single unmissable focus
+ * state shared by hover, keyboard and gamepad. */
+
+.btn,
+.am-option {
+  background: #1e242f;
+  border: 2px solid #454f61;
+  border-radius: 0 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  transition: none;
+}
+.btn.primary {
+  background: var(--gold);
+  border-color: #f0cd6b;
+  color: #221a08;
+}
+.btn:hover:not(:disabled),
+.btn.kb-focus {
+  background: var(--gold);
+  border-color: #fff3c4;
+  color: #221a08;
+  transform: none;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+.btn.kb-focus { outline: 3px solid #ffffff; outline-offset: 1px; }
+.btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.55); }
+
+.am-option { font-size: 0.9rem; }
+.am-option:hover,
+.am-option.kb-focus {
+  background: #2c3547;
+  border-color: var(--gold);
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
+}
+.am-option.kb-focus { outline: 3px solid #ffffff; outline-offset: 1px; }
+.am-cards .pcard.kb-focus { outline: 3px solid #ffffff; outline-offset: 2px; }
+
+.modal {
+  background: #141821;
+  border: 3px solid var(--gold-dim);
+  border-radius: 0;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.55);
+}
+#logDrawer, #tutorBox, .howto-frame, #toast, .fx-duel, .log-panel {
+  border-radius: 0 !important;
+}
+.fx-duel { box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.55); }
+#tutorBox { box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.55); }
+.duel-chip, .glory-fly, .hud-chip { border-radius: 0; }
+
+#setup .menu-list { width: min(360px, 92vw); margin-left: auto; margin-right: auto; }
+#setup .menu-list .btn { font-size: 1rem; padding: 0.8rem 1.4rem; }
+#setup .seat-note { font-size: 0.85rem; }
+
+/* Hint bar: the console's standing promise about the controls. */
+#hintBar {
+  position: fixed;
+  bottom: 10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 1.4rem;
+  z-index: 70;
+  pointer-events: none;
+  font-size: 0.74rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+#hintBar.hidden { display: none; }
+#hintBar .hint { display: inline-flex; align-items: center; gap: 7px; }
+#hintBar .key {
+  display: inline-block;
+  min-width: 1.3em;
+  text-align: center;
+  border: 2px solid #454f61;
+  background: #161a22;
+  padding: 1px 6px;
+  color: var(--gold);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.55);
+  font-size: 0.8rem;
+  text-transform: none;
+}

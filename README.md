@@ -53,7 +53,11 @@ sound effects with a mute toggle. During play the UI goes full screen,
 console-style: a compact HUD, the board auto-scaled to the display, the hand as
 a bottom bar, themed pixel-letter action banners (with a screen slash for
 damage), and everything else — chronicle history, sound, fullscreen, rules —
-tucked into a pause menu (Esc) and a chronicle drawer.
+tucked into a pause menu (Esc) and a chronicle drawer. Menus follow console
+(10-foot) rules: flat pixel chrome, one primary action per screen, a single
+always-visible focus ring driven by arrow keys, Enter/Esc or a connected
+gamepad (d-pad/stick, A select, B back), and a standing hint bar that says
+which buttons do what.
 
 ## Code layout
 
@@ -62,6 +66,7 @@ css/style.css   — all styling (incl. print styles for the reference sheet)
 js/cards.js     — deck, suits, strengths, army names
 js/engine.js    — pure game logic, no DOM (unit-testable in Node)
 js/ui.js        — rendering, input, FX queue and sound for game.html
+js/consoleui.js — focus-driven menu navigation (keyboard + gamepad) and hint bar
 js/swirl.js     — WebGL pixel-swirl background (CSS fallback)
 ```
 
