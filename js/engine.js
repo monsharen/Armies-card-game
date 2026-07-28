@@ -50,11 +50,14 @@ function shuffle(arr) {
   return arr;
 }
 
-function createGame(numHumans) {
+/* deckOverride (optional): a prepared 52-card deck, used as-is instead of a
+ * shuffle — cards are drawn by pop(), so the LAST element is dealt first.
+ * The tutorial uses this for a deterministic opening. */
+function createGame(numHumans, deckOverride) {
   const humans = HUMAN_SEATS[numHumans] === undefined ? HUMAN_SEATS[1] : HUMAN_SEATS[numHumans];
   const state = {
     season: 1,
-    deck: shuffle(makeDeck()),
+    deck: deckOverride ? deckOverride.slice() : shuffle(makeDeck()),
     discard: [],
     garrison: null,
     armies: {},

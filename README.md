@@ -36,7 +36,7 @@ seconds (the supply bank is literally a face-up pile of cards).
 
 | Page | Purpose |
 |------|---------|
-| `index.html` | The game — a fullscreen app: title screen, main menu, in-game How to Play, hot-seat play for 1–4 players plus automated armies |
+| `index.html` | The game — a fullscreen app: title screen, main menu (New Game / Tutorial), an interactive tutorial that teaches by playing a scripted opening, in-game How to Play, hot-seat play for 1–4 players plus automated armies |
 | `reference.html` | Printable one-page reference sheet for tabletop play (linked from the menu) |
 | `game.html`, `rules.html` | Redirects into the app (kept for old links) |
 

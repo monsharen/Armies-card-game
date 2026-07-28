@@ -20,18 +20,24 @@
     </div>
 
     <div id="setup" class="hidden">
-      <h2 class="pixel-title wave" data-scale="4">Muster the Armies</h2>
-      <p class="seat-note">Four armies always fight — ♥ Hearts, ♠ Spades, ♦ Diamonds and
-      ♣ Clover. Armies without a player run themselves.</p>
-      <div class="menu-list">
+      <h2 class="pixel-title wave" data-scale="4">Kartenburg</h2>
+      <div class="menu-list" id="menuMain">
+        <button class="btn primary big" onclick="showPlayerSelect()">⚔️ New Game</button>
+        <button class="btn primary big" onclick="startTutorial()">🎓 Tutorial</button>
+        <span class="menu-divider"></span>
+        <button class="btn" onclick="openHowto(false)">📖 How to Play</button>
+        <button class="btn" onclick="window.open('reference.html', '_blank')">🖨️ Print &amp; Play</button>
+        <button class="btn muteBtn" onclick="toggleSound()">🔊 Sound on</button>
+      </div>
+      <div class="menu-list hidden" id="menuPlayers">
+        <p class="seat-note">Four armies always fight — ♥ Hearts, ♠ Spades, ♦ Diamonds and
+        ♣ Clover. Armies without a player run themselves.</p>
         <button class="btn primary big" onclick="newGame(1)">⚔️ 1 Player</button>
         <button class="btn primary big" onclick="newGame(2)">⚔️ 2 Players</button>
         <button class="btn big" onclick="newGame(3)">⚔️ 3 Players</button>
         <button class="btn big" onclick="newGame(4)">⚔️ 4 Players</button>
         <span class="menu-divider"></span>
-        <button class="btn" onclick="openHowto(false)">📖 How to Play</button>
-        <button class="btn" onclick="window.open('reference.html', '_blank')">🖨️ Print &amp; Play</button>
-        <button class="btn muteBtn" onclick="toggleSound()">🔊 Sound on</button>
+        <button class="btn" onclick="showMainMenu()">◀ Back</button>
       </div>
     </div>
 
@@ -123,6 +129,15 @@
   </div>
 
   <div id="fx"></div>
+
+  <div id="tutorBox" class="hidden">
+    <div class="tut-head"><span class="pixel-title" data-scale="2" data-color="#d4a72c">Tutorial</span></div>
+    <div id="tutText" class="tut-text"></div>
+    <div class="tut-actions">
+      <button class="btn primary" id="tutNextBtn" onclick="tutNext()">Next ▶</button>
+      <button class="btn slim" onclick="tutSkip()">Skip tutorial</button>
+    </div>
+  </div>
 
   <div id="toast"></div>
 

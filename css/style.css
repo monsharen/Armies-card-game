@@ -1150,3 +1150,49 @@ body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important;
 /* menu fades in after the CRT wink */
 #setup { animation: menuIn 0.4s ease-out; }
 @keyframes menuIn { from { opacity: 0; transform: translateY(10px); } }
+
+/* ── Tutorial coach box + highlights ─────────────────────────────────── */
+#tutorBox {
+  position: fixed;
+  top: 56px;
+  left: 12px;
+  width: min(340px, calc(100vw - 24px));
+  background: rgba(16, 19, 26, 0.94);
+  border: 2px solid var(--gold);
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  z-index: 55;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 14px rgba(212, 167, 44, 0.25);
+  animation: tut-in 0.35s ease-out;
+}
+@keyframes tut-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+#tutorBox .tut-head { margin-bottom: 0.45rem; }
+#tutorBox .tut-text { font-size: 0.88rem; line-height: 1.5; color: var(--ink, #e8e4d8); }
+#tutorBox .tut-text b, #tutorBox .tut-text em { color: var(--gold); font-style: normal; }
+#tutorBox .tut-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; align-items: center; }
+#tutorBox .tut-actions .btn.slim { opacity: 0.7; }
+
+.tut-hl {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+  border-radius: 6px;
+  animation: tut-pulse 0.9s ease-in-out infinite alternate;
+}
+@keyframes tut-pulse {
+  from { outline-color: var(--gold); box-shadow: 0 0 6px rgba(212, 167, 44, 0.4); }
+  to { outline-color: #fff3c4; box-shadow: 0 0 18px rgba(212, 167, 44, 0.85); }
+}
+
+@media (max-width: 760px) {
+  #tutorBox {
+    top: auto;
+    bottom: calc(var(--bottombar-h, 180px) + 8px);
+    left: 8px;
+    width: calc(100vw - 16px);
+    padding: 0.6rem 0.8rem;
+  }
+  #tutorBox .tut-text { font-size: 0.8rem; }
+}
