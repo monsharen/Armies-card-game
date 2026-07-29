@@ -1919,3 +1919,12 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 @keyframes flagRaise {
   from { transform: translateY(30px); opacity: 0; }
 }
+
+/* The dealt card's flip, in place over its hand slot. */
+.fx-dealflip {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  z-index: 47;
+  pointer-events: none;
+  perspective: 500px;
+}
