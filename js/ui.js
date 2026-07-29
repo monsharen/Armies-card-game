@@ -891,7 +891,21 @@ const DECOR = {
     colors: { 1: '#d4a72c', 2: '#b7c0cc', 3: '#6b4a2c' } },
   spear: { rows: ['1', '2', '2', '2', '2', '2', '2'], colors: { 1: '#b7c0cc', 2: '#6b4a2c' } },
   helmet: { rows: ['01110', '11111', '12121'], colors: { 1: '#7a828e', 2: '#23252c' } },
+  tent: { rows: ['0001000', '0011100', '0111110', '1112111'],
+    colors: { 1: '#8a7550', 2: '#2a2118' } },
+  fire: { rows: ['00200', '02320', '23332', '11111'],
+    colors: { 1: '#6b4a2c', 2: '#e8842c', 3: '#f0cd6b' } },
+  gatetorch: { rows: ['030', '232', '111', '111', '111'],
+    colors: { 1: '#565b64', 2: '#e8842c', 3: '#f0cd6b' } },
 };
+
+/* A fixed piece of set dressing (campsite, gate posts) at a CSS position. */
+function spriteImg(name, cls, scale) {
+  const d = DECOR[name];
+  return '<img class="site ' + cls + '" src="' + decorSprite(name) + '" width="' +
+    d.rows[0].length * scale + '" height="' + d.rows.length * scale +
+    '" alt="" draggable="false">';
+}
 const decorCache = new Map();
 
 function decorSprite(name) {
@@ -1121,7 +1135,9 @@ function renderLaneBoard() {
         '" data-cell="road-' + suit + '-' + i + '"' +
         (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
         cellDecorHTML('road-' + suit + '-' + i) +
-        (i === ROAD_LEN - 1 ? '<label>Gate</label>' : '') +
+        (i === ROAD_LEN - 1
+          ? spriteImg('gatetorch', 'gt-l', 3) + spriteImg('gatetorch', 'gt-r', 3) + '<label>Gate</label>'
+          : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }
     // Camp: every played card is visible — posts (Q/K) as single cards,
@@ -1132,7 +1148,9 @@ function renderLaneBoard() {
     ].filter(Boolean).map(p =>
       '<div class="lane-post" title="' + p.t + '">' + pcardHTML(p.c, 'mini') + '</div>').join('');
     html += '<div class="lane-slot camp" data-cell="camp-' + suit + '">' +
-      cellDecorHTML('camp-' + suit) + '<label>Camp</label>' + posts +
+      cellDecorHTML('camp-' + suit) +
+      spriteImg('tent', 'camp-tent', 3) + spriteImg('fire', 'camp-fire', 3) +
+      '<label>Camp</label>' + posts +
       a.camp.map((s, i) => {
         const movable = mine && can('camp', i);
         return '<div class="lane-camp-stack' + (movable ? ' movable' : '') + '"' +
