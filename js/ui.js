@@ -873,6 +873,20 @@ function handFanHTML(n) {
     cards + '<b>' + n + '</b></span>';
 }
 
+/* An automated army's banked supply: a staggered pile of card backs plus
+ * the count — the pile its next march will be paid from. */
+function supplyPileHTML(n) {
+  if (!n) return '';
+  const shown = Math.min(n, 4);
+  let cards = '';
+  for (let i = 0; i < shown; i++) {
+    cards += '<img class="pile-card" src="' + cardSprite(null, 's') +
+      '" width="16" height="22" style="--i:' + i + '" alt="" draggable="false">';
+  }
+  return '<span class="supply-pile" title="Banked supply: ' + n +
+    ' — their front army marches once this covers its cost">' + cards + '<b>' + n + '</b></span>';
+}
+
 function viewerSuit() {
   const cur = currentArmy(game);
   if (cur.isHuman && (humanSuits().length <= 1 || ui.revealedSuit === cur.suit)) return cur.suit;
@@ -912,7 +926,6 @@ function renderLaneBoard() {
       (game.garrison.owner === suit ? '<span class="lane-crown">👑</span>' : '') +
       '<span class="lane-score' + (bumped ? ' bump' : '') + '" data-lane-score="' + suit + '">' +
       a.glory + '</span>' +
-      (!a.isHuman && a.supply ? '<span class="lane-posts"><i>' + a.supply + '</i></span>' : '') +
       '</div>';
     for (let i = ROAD_LEN - 1; i >= 0; i--) {
       const stack = a.road[i];
@@ -940,8 +953,10 @@ function renderLaneBoard() {
           ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
           stackHTML(game, suit, s.cards) + '</div>';
       }).join('') + '</div>';
-    // Their cards enter play from here: the held hand sits at the lane's foot.
-    html += '<div class="lane-foot">' + (a.isHuman ? handFanHTML(a.hand.length) : '') + '</div>';
+    // Their cards enter play from here: humans show their held hand,
+    // automated armies their banked supply pile.
+    html += '<div class="lane-foot">' +
+      (a.isHuman ? handFanHTML(a.hand.length) : supplyPileHTML(a.supply)) + '</div>';
     html += '</div>';
   }
   html += '</div>';
