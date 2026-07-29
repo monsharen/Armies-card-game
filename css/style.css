@@ -1895,3 +1895,22 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   border-color: rgba(212, 167, 44, 0.45);
 }
 .lane-slot.gate label { letter-spacing: 0.2em; }
+
+/* The occupant's banner over the gate: lowered and hoisted on capture. */
+.city-flag {
+  position: absolute;
+  top: 2px;
+  left: calc(50% + 26px);
+  z-index: 1;
+  image-rendering: pixelated;
+  pointer-events: none;
+  filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.45));
+}
+.city-flag.flag-lower { animation: flagLower 0.42s ease-in forwards; }
+.city-flag.flag-raise { animation: flagRaise 0.5s ease-out; }
+@keyframes flagLower {
+  to { transform: translateY(30px); opacity: 0; }
+}
+@keyframes flagRaise {
+  from { transform: translateY(30px); opacity: 0; }
+}

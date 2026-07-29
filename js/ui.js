@@ -49,6 +49,7 @@ function newGame(numHumans, tutorialDeck) {
   ui.glorySeen = null;
   ui.pendingHide = {};
   ui.scars = {};
+  ui.flagShown = null;
   ui.terrainSeed = (Math.random() * 1e9) | 0;
   ui.glorySrc = {};
   for (const s of SUITS) ui.glorySrc[s] = { capture: 0, tribute: 0, season: 0 };
@@ -1029,6 +1030,35 @@ function cityWallSprite() {
   return url;
 }
 
+/* The banner over Kartenburg: the occupant's colors on a pole, with a
+ * swallowtail cut and their suit on the cloth. Mercenaries fly plain
+ * grey. Drawn pixel-by-pixel like everything else on the field. */
+function flagSprite(suit) {
+  const key = 'flag:' + (suit || 'none');
+  if (roadCache.has(key)) return roadCache.get(key);
+  const W = 10, H = 15;
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#6b4a2c'; // the pole
+  ctx.fillRect(0, 0, 1, H);
+  ctx.fillStyle = '#d4a72c'; // finial
+  ctx.fillRect(0, 0, 1, 1);
+  const tint = suit ? SUIT_META[suit].tint : '#5d6675';
+  for (let y = 1; y < 9; y++) {
+    for (let x = 1; x < W; x++) {
+      if (x === W - 1 && (y === 4 || y === 5)) continue; // swallowtail notch
+      ctx.fillStyle = tint;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  if (suit) drawPix(ctx, PIX_SUIT[suit], 2, 2, { 1: '#f4ecd8' });
+  const url = cv.toDataURL();
+  roadCache.set(key, url);
+  return url;
+}
+
 /* Stable per-cell terrain plus whatever scars the war has left there.
  * Grass and rocks hug the slot's edges, framing the path down the middle
  * where the armies (and the debris they leave) belong. */
@@ -1100,6 +1130,7 @@ function renderLaneBoard() {
     (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
     '<img class="city-wall" src="' + cityWallSprite() + '" alt="" draggable="false">' +
+    '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" alt="" draggable="false">' +
     cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
     '<div class="lane-city-info">' +
@@ -1932,6 +1963,20 @@ function runFx(ev) {
     }
     case 'capture': {
       showBanner('KARTENBURG FALLS!', suitOpts(ev.suit, { icon: '👑', big: true }));
+      const flag = document.querySelector('.city-flag');
+      if (flag) {
+        flag.classList.add('flag-lower');
+        setTimeout(() => {
+          ui.flagShown = ev.suit;
+          flag.src = flagSprite(ev.suit);
+          flag.classList.remove('flag-lower');
+          flag.classList.add('flag-raise');
+          sfx.flip();
+          setTimeout(() => flag.classList.remove('flag-raise'), 520);
+        }, 430);
+      } else {
+        ui.flagShown = ev.suit;
+      }
       const r = rectOf(cellSel('citadel'));
       flashAt(r);
       hitstop(95); // Vlambeer freeze-frame before the payoff
