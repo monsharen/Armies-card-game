@@ -1903,6 +1903,8 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 
 /* The occupant's banner over the gate: lowered and hoisted on capture. */
 .city-flag {
+  transform-origin: 12% 92%;
+  animation: flagFlutter 1.25s steps(2) infinite;
   position: absolute;
   top: 26px; /* pole planted, base buried in the wall's ground */
   left: calc(50% + 26px);
@@ -1911,8 +1913,9 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   pointer-events: none;
   filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.45));
 }
-.city-flag.flag-lower { animation: flagLower 0.42s ease-in forwards; }
-.city-flag.flag-raise { animation: flagRaise 0.5s ease-out; }
+/* The ceremony overrides the idle flutter (and its inline phase). */
+.city-flag.flag-lower { animation: flagLower 0.42s ease-in forwards !important; }
+.city-flag.flag-raise { animation: flagRaise 0.5s ease-out !important; }
 @keyframes flagLower {
   to { transform: translateY(30px); opacity: 0; }
 }

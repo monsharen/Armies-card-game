@@ -948,11 +948,11 @@ const DECOR = {
 };
 
 /* A fixed piece of set dressing (campsite, gate posts) at a CSS position. */
-function spriteImg(name, cls, scale) {
+function spriteImg(name, cls, scale, style) {
   const d = DECOR[name];
   return '<img class="site ' + cls + '" src="' + decorSprite(name) + '" width="' +
     d.rows[0].length * scale + '" height="' + d.rows.length * scale +
-    '" alt="" draggable="false">';
+    (style ? '" style="' + style : '') + '" alt="" draggable="false">';
 }
 const decorCache = new Map();
 
@@ -1198,7 +1198,7 @@ function renderLaneBoard() {
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
     (cityAssault ? goArrow('assault', 'citadel', 0) : '') +
     '<img class="city-wall" src="' + cityWallSprite() + '" alt="" draggable="false">' +
-    '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" alt="" draggable="false">' +
+    '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" style="animation-duration:1.25s;animation-delay:-0.6s" alt="" draggable="false">' +
     cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
     '<div class="lane-city-info">' +
@@ -1215,6 +1215,13 @@ function renderLaneBoard() {
     const a = game.armies[suit];
     const mine = suit === you;
     const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
+    // Nothing on a real field moves in lockstep: every flag and fire gets
+    // its own tempo and phase, seeded per lane so it never reshuffles.
+    const wrnd = mulberry32((ui.terrainSeed || 1) + hashStr('wave-' + suit));
+    const wave = {
+      flag: 'animation-duration:' + (0.95 + wrnd() * 0.5).toFixed(2) + 's;animation-delay:-' + (wrnd() * 1.3).toFixed(2) + 's',
+      fire: 'animation-duration:' + (0.55 + wrnd() * 0.3).toFixed(2) + 's;animation-delay:-' + (wrnd() * 0.7).toFixed(2) + 's',
+    };
     html += '<div class="lane-col' + (mine ? ' mine' : '') + '" style="--tint:' + SUIT_META[suit].tint + '">' +
       '<div class="lane-head" title="' + armyName(suit) + ' — ' + a.glory + ' glory">' +
       '<span class="lane-sym">' + SUIT_META[suit].symbol + '</span>' +
@@ -1238,7 +1245,7 @@ function renderLaneBoard() {
         (mark ? goArrow(mark, 'road', i) : '') +
         cellDecorHTML('road-' + suit + '-' + i) +
         (i === ROAD_LEN - 1
-          ? '<img class="site gate-flag" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
+          ? '<img class="site gate-flag" src="' + flagSprite(suit) + '" width="20" height="30" style="' + wave.flag + '" alt="" draggable="false">' +
             '<label>Gate</label>'
           : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
@@ -1252,7 +1259,7 @@ function renderLaneBoard() {
       '<div class="lane-post" title="' + p.t + '">' + pcardHTML(p.c, 'mini') + '</div>').join('');
     html += '<div class="lane-slot camp" data-cell="camp-' + suit + '">' +
       cellDecorHTML('camp-' + suit) +
-      spriteImg('tent', 'camp-tent', 3) + spriteImg('fire', 'camp-fire', 3) +
+      spriteImg('tent', 'camp-tent', 3) + spriteImg('fire', 'camp-fire', 3, wave.fire) +
       '<label>Camp</label>' + posts +
       a.camp.map((s, i) => {
         const movable = mine && can('camp', i);
