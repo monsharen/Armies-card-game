@@ -601,18 +601,10 @@ function modalDiscard(i) {
   afterEngineCall();
 }
 
-/* Tap the destination: if exactly one affordable army can take that step,
- * it moves at once; if several could, fall back to the picker sheet. */
-function marchTo(destZone, destIdx) {
+/* Tap an army's forward arrow: it takes its one forward step at once. */
+function marchFrom(zone, idx) {
   if (!myTurn() || mustDiscard() || ui.modal) return;
-  const army = currentArmy(game);
-  const nSupply = supplyIndices(army).length;
-  const plans = computeMarchPlans(game, army.suit).filter(p => p.cost <= nSupply &&
-    (destZone === 'citadel' ? p.dest.zone === 'citadel'
-      : p.dest.zone === 'road' && p.dest.idx === destIdx));
-  if (!plans.length) return;
-  if (plans.length > 1) { openPickArmyModal(); return; }
-  const res = march(game, plans[0].from);
+  const res = march(game, { zone, idx });
   if (!res.ok) { toast(res.msg); return; }
   afterEngineCall();
 }
@@ -1172,31 +1164,25 @@ function renderLaneBoard() {
   const plans = active ? computeMarchPlans(game, you) : [];
   const nSupply = active ? supplyIndices(game.armies[you]).length : 0;
   const can = (zone, idx) => plans.some(p => p.from.zone === zone && p.from.idx === idx && p.cost <= nSupply);
-  const destMarks = {};
-  if (active) {
-    for (const p of plans) {
-      if (p.cost > nSupply) continue;
-      const key = p.dest.zone === 'citadel' ? 'citadel' : 'road-' + p.dest.idx;
-      // an assault/merge mark outranks a plain move into the same slot
-      if (!destMarks[key] || p.kind !== 'move') destMarks[key] = p.kind;
-    }
-  }
+  const srcKind = (zone, idx) => {
+    if (!active) return null;
+    const p = plans.find(q => q.from.zone === zone && q.from.idx === idx && q.cost <= nSupply);
+    return p ? p.kind : null;
+  };
   const goArrow = (kind, zone, idx) => {
     const d = DECOR[kind === 'assault' ? 'atkarrow' : 'uparrow'];
     return '<button class="go-arrow kind-' + kind + '"' +
-      ' onclick="event.stopPropagation(); marchTo(\'' + zone + '\',' + idx + ')"' +
-      ' title="' + (kind === 'assault' ? 'Assault Kartenburg' : kind === 'merge' ? 'Merge your armies here' : 'March here') + '">' +
+      ' onclick="event.stopPropagation(); marchFrom(\'' + zone + '\',' + idx + ')"' +
+      ' title="' + (kind === 'assault' ? 'Assault Kartenburg' : kind === 'merge' ? 'Merge into the army ahead' : 'March forward') + '">' +
       '<img src="' + decorSprite(kind === 'assault' ? 'atkarrow' : 'uparrow') +
       '" width="' + d.rows[0].length * 3 + '" height="' + d.rows.length * 3 + '" alt="" draggable="false">' +
       (kind === 'merge' ? '<i>+</i>' : kind === 'assault' ? '<i>⚔</i>' : '') +
       '</button>';
   };
 
-  const cityAssault = destMarks['citadel'];
-  let html = '<div class="lane-city' + (cityAssault ? ' assaultable" onclick="marchTo(\'citadel\',0)' : '') + '" data-cell="citadel"' +
+  let html = '<div class="lane-city" data-cell="citadel"' +
     (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
-    (cityAssault ? goArrow('assault', 'citadel', 0) : '') +
     '<img class="city-wall" src="' + cityWallSprite() + '" alt="" draggable="false">' +
     '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" style="animation-duration:1.25s;animation-delay:-0.6s" alt="" draggable="false">' +
     cellDecorHTML('citadel') +
@@ -1235,14 +1221,13 @@ function renderLaneBoard() {
     for (let i = ROAD_LEN - 1; i >= 0; i--) {
       const stack = a.road[i];
       const movable = mine && can('road', i);
-      const mark = mine ? destMarks['road-' + i] : null;
+      const kind = mine && stack ? srcKind('road', i) : null;
       html += '<div class="lane-slot' + (stack ? ' occ' : '') + (movable ? ' movable' : '') +
         (i === ROAD_LEN - 1 ? ' gate' : '') +
         (stack && i === ROAD_LEN - 1 && !mine ? ' threat' : '') +
         '" data-cell="road-' + suit + '-' + i + '"' +
-        (mine ? (mark && !stack ? ' onclick="marchTo(\'road\',' + i + ')"'
-          : ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"') : '') + '>' +
-        (mark ? goArrow(mark, 'road', i) : '') +
+        (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
+        (kind ? goArrow(kind, 'road', i) : '') +
         cellDecorHTML('road-' + suit + '-' + i) +
         (i === ROAD_LEN - 1
           ? '<img class="site gate-flag" src="' + flagSprite(suit) + '" width="20" height="30" style="' + wave.flag + '" alt="" draggable="false">' +
@@ -1263,9 +1248,11 @@ function renderLaneBoard() {
       '<label>Camp</label>' + posts +
       a.camp.map((s, i) => {
         const movable = mine && can('camp', i);
+        const ckind = movable ? srcKind('camp', i) : null;
         return '<div class="lane-camp-stack' + (movable ? ' movable' : '') + '"' +
           (mine && active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') +
           ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
+          (ckind ? goArrow(ckind, 'camp', i) : '') +
           stackHTML(game, suit, s.cards) + '</div>';
       }).join('') + '</div>';
     html += '</div>'; // /lane-path
