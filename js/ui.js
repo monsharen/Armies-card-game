@@ -929,6 +929,92 @@ function mulberry32(a) {
   };
 }
 
+/* The sandy road itself: a low-res pixel sprite, drawn with a wandering
+ * random-walk centerline and ragged dithered edges — never straight,
+ * never antialiased — seeded per lane so each war's roads are its own. */
+const roadCache = new Map();
+
+function lanePathSprite(suit) {
+  const key = suit + ':' + (ui.terrainSeed || 1);
+  if (roadCache.has(key)) return roadCache.get(key);
+  const W = 36, H = 140;
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+  const rnd = mulberry32((ui.terrainSeed || 1) + hashStr('path-' + suit));
+  let cx = W / 2, w = 10;
+  for (let y = 0; y < H; y++) {
+    cx += Math.round(rnd() * 2 - 1);
+    if (rnd() < 0.25) w += Math.round(rnd() * 2 - 1);
+    w = Math.max(9, Math.min(12, w));
+    cx = Math.max(w + 3, Math.min(W - w - 3, cx));
+    const x1 = Math.round(cx - w), x2 = Math.round(cx + w);
+    ctx.fillStyle = '#3a2e1c';                 // ragged edge pixels
+    ctx.fillRect(x1, y, 1, 1);
+    ctx.fillRect(x2, y, 1, 1);
+    ctx.fillStyle = '#55452a';                 // the sand
+    ctx.fillRect(x1 + 1, y, x2 - x1 - 1, 1);
+    for (let i = 0; i < 3; i++) {              // dither speckles
+      if (rnd() < 0.5) {
+        ctx.fillStyle = rnd() < 0.5 ? '#6a5735' : '#463a22';
+        ctx.fillRect(x1 + 2 + Math.floor(rnd() * (x2 - x1 - 3)), y, 1, 1);
+      }
+    }
+  }
+  const url = cv.toDataURL();
+  roadCache.set(key, url);
+  return url;
+}
+
+/* Kartenburg itself: a pixel stone wall with battlements and a gate,
+ * stretched across the top of the field. Same rules as the roads —
+ * hard pixels only, seeded noise, cached per game. */
+function cityWallSprite() {
+  const key = 'city:' + (ui.terrainSeed || 1);
+  if (roadCache.has(key)) return roadCache.get(key);
+  const W = 96, H = 26;
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+  const rnd = mulberry32((ui.terrainSeed || 1) + hashStr('city'));
+  // Wall body: stone bricks with mortar lines and offset joints.
+  for (let y = 5; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      let c = '#565b64';
+      if (y >= H - 2) c = '#383c43';
+      else if (y % 5 === 0) c = '#3f434b';
+      else if (((x + (Math.floor(y / 5) % 2 ? 3 : 0)) % 7) === 0) c = '#3f434b';
+      else if (rnd() < 0.07) c = '#646a75';
+      else if (rnd() < 0.05) c = '#4b5058';
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  // Battlements: merlons with open sky between them.
+  for (let x = 0; x < W; x++) {
+    if (Math.floor(x / 5) % 2 === 0) {
+      for (let y = 0; y < 5; y++) {
+        ctx.fillStyle = y === 0 ? '#646a75' : '#565b64';
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  // The main gate, where the roads arrive.
+  const cx = W / 2;
+  for (let y = 12; y < H; y++) {
+    const half = y < 14 ? 3 : y < 16 ? 5 : 6;
+    ctx.fillStyle = '#161116';
+    ctx.fillRect(cx - half, y, half * 2, 1);
+  }
+  ctx.fillStyle = '#6b4a2c'; // timber lintel
+  ctx.fillRect(cx - 6, 11, 12, 1);
+  const url = cv.toDataURL();
+  roadCache.set(key, url);
+  return url;
+}
+
 /* Stable per-cell terrain plus whatever scars the war has left there.
  * Grass and rocks hug the slot's edges, framing the path down the middle
  * where the armies (and the debris they leave) belong. */
@@ -999,6 +1085,7 @@ function renderLaneBoard() {
   let html = '<div class="lane-city" data-cell="citadel"' +
     (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
+    '<img class="city-wall" src="' + cityWallSprite() + '" alt="" draggable="false">' +
     cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
     '<div class="lane-city-info">' +
@@ -1022,6 +1109,9 @@ function renderLaneBoard() {
       '<span class="lane-score' + (bumped ? ' bump' : '') + '" data-lane-score="' + suit + '">' +
       a.glory + '</span>' +
       '</div>';
+    // The sandy road up to Kartenburg — a wobbly pixel sprite under the slots.
+    html += '<div class="lane-path"><img class="lane-road" src="' + lanePathSprite(suit) +
+      '" alt="" draggable="false">';
     for (let i = ROAD_LEN - 1; i >= 0; i--) {
       const stack = a.road[i];
       const movable = mine && can('road', i);
@@ -1050,6 +1140,7 @@ function renderLaneBoard() {
           ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
           stackHTML(game, suit, s.cards) + '</div>';
       }).join('') + '</div>';
+    html += '</div>'; // /lane-path
     // Their cards enter play from here: humans show their held hand,
     // automated armies their banked supply pile.
     html += '<div class="lane-foot">' +
