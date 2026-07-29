@@ -57,11 +57,13 @@ tucked into a pause menu (Esc) and a chronicle drawer. Menus follow console
 (10-foot) rules: flat pixel chrome, one primary action per screen, a single
 always-visible focus ring driven by arrow keys, Enter/Esc or a connected
 gamepad (d-pad/stick, A select, B back), and a standing hint bar that says
-which buttons do what. On portrait phones the 2D table gives way to an
-interaction-first **lane view** — Kartenburg as a status strip, rival armies as
-compact rows, your own road as the big tappable track — with action dialogs as
-thumb-reach bottom sheets and a live ticker narrating the automated armies'
-turns; wide screens keep the full map with the pan/zoom camera.
+which buttons do what. The game view is a single interaction-first **lane
+board** on every screen (phone-shaped and centered on desktop): Kartenburg as
+a status strip on top, four vertical lanes beneath it with each army's glory
+at the lane's head, real card stacks climbing the slots toward the city, held
+hands fanned at the lane's foot, action dialogs as thumb-reach bottom sheets,
+a live ticker narrating the automated armies' turns, and the deck / discard
+piles stepping to center stage whenever cards are drawn or thrown away.
 
 ## Code layout
 
