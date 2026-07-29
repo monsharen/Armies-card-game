@@ -929,15 +929,19 @@ function mulberry32(a) {
   };
 }
 
-/* Stable per-cell terrain plus whatever scars the war has left there. */
+/* Stable per-cell terrain plus whatever scars the war has left there.
+ * Grass and rocks hug the slot's edges, framing the path down the middle
+ * where the armies (and the debris they leave) belong. */
 function cellDecorHTML(key) {
   let html = '';
   const rnd = mulberry32((ui.terrainSeed || 1) + hashStr(key));
-  const n = 2 + Math.floor(rnd() * 3);
+  const n = 3 + Math.floor(rnd() * 2);
   const kinds = ['grass', 'grass2', 'rock', 'grass', 'pebble'];
   for (let i = 0; i < n; i++) {
+    const left = rnd() < 0.5;
+    const x = left ? 2 + rnd() * 12 : 84 + rnd() * 12;
     html += decorImg(kinds[Math.floor(rnd() * kinds.length)],
-      6 + rnd() * 76, 12 + rnd() * 68, 0, 'decor');
+      x, 6 + rnd() * 78, 0, 'decor');
   }
   for (const s of (ui.scars && ui.scars[key]) || []) {
     html += decorImg(s.t, s.x, s.y, s.rot, 'scar');
