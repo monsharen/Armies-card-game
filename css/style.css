@@ -1790,3 +1790,13 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 .fx-stage .pile-stack .pcard { position: absolute; left: 0; top: 0; }
 .fx-stage .pile-stack .pcard.b2 { transform: translate(3px, -3px); }
 .fx-stage .pile-stack .pcard.b3 { transform: translate(6px, -6px); }
+
+/* Automated armies' banked supply pile at their lane's foot. */
+.supply-pile { display: inline-flex; align-items: flex-end; }
+.supply-pile .pile-card {
+  image-rendering: pixelated;
+  margin-left: -12px;
+  transform: translate(calc(var(--i, 0) * 2px), calc(var(--i, 0) * -2px));
+}
+.supply-pile .pile-card:first-child { margin-left: 0; }
+.supply-pile b { font-size: 0.5rem; color: var(--gold); margin-left: 5px; }
