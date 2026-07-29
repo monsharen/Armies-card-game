@@ -1928,3 +1928,47 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   pointer-events: none;
   perspective: 500px;
 }
+
+/* Special cards: pixel-star shimmer + a chunky sun-glint sweep. */
+.hand-slot { position: relative; }
+.card-shimmer {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 64px;
+  height: 88px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+.pix-star {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: #fff;
+  box-shadow: 0 -3px 0 #ffe9a0, 0 3px 0 #ffe9a0, -3px 0 0 #ffe9a0, 3px 0 0 #ffe9a0;
+  opacity: 0;
+  animation: starTwink 2.4s steps(2) infinite;
+}
+@keyframes starTwink {
+  0%, 100% { opacity: 0; }
+  38% { opacity: 1; }
+  52% { opacity: 0.35; }
+  66% { opacity: 1; }
+}
+.card-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg,
+    transparent 0 38%, rgba(255, 244, 200, 0.55) 38% 50%, transparent 50% 100%);
+  background-size: 250% 100%;
+  background-position: 130% 0;
+  animation: sunFlash 3.6s steps(7) infinite;
+  mix-blend-mode: screen;
+}
+@keyframes sunFlash {
+  0% { background-position: 130% 0; }
+  16% { background-position: -60% 0; }
+  100% { background-position: -60% 0; }
+}

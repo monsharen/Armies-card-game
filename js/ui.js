@@ -1259,10 +1259,24 @@ function renderHand() {
     if (!own) classes.push('supply');
     const tag = own ? (card.rank === 'J' ? 'raider' : card.rank === 'Q' ? 'banner' :
       card.rank === 'K' ? 'general' : card.rank === 'A' ? 'champion' : 'soldier') : 'supply';
+    // Special cards (your own courts and champion) shimmer: pixel stars and
+    // a passing sun-glint, so they never read as mere supply.
+    let shimmer = '';
+    if (own && 'JQKA'.indexOf(card.rank) !== -1) {
+      const rr = mulberry32(hashStr(card.id));
+      let stars = '';
+      for (let k = 0; k < 3; k++) {
+        stars += '<span class="pix-star" style="left:' + (12 + rr() * 66).toFixed(0) +
+          '%;top:' + (8 + rr() * 66).toFixed(0) + '%;animation-delay:' +
+          (rr() * 2.2).toFixed(2) + 's"></span>';
+      }
+      shimmer = '<span class="card-shimmer" aria-hidden="true">' + stars +
+        '<span class="card-shine" style="animation-delay:' + (rr() * 1.6).toFixed(2) + 's"></span></span>';
+    }
     const hiddenFrom = a.hand.length - (ui.pendingHide[handSuit] || 0);
     return '<div class="hand-slot' + (i >= hiddenFrom ? ' deal-hide' : '') + '" data-slot="' + i +
       '" style="--i:' + i + '"' + (active ? ' onclick="onHandClick(' + i + ')"' : '') + '>' +
-      pcardHTML(card, classes.join(' ')) + '<span class="hand-tag">' + tag + '</span></div>';
+      pcardHTML(card, classes.join(' ')) + shimmer + '<span class="hand-tag">' + tag + '</span></div>';
   }).join('') || '<p class="hint">Empty hand.</p>';
   html += '</div></div>';
   area.innerHTML = html;
