@@ -896,8 +896,6 @@ const DECOR = {
     colors: { 1: '#8a7550', 2: '#2a2118' } },
   fire: { rows: ['00200', '02320', '23332', '11111'],
     colors: { 1: '#6b4a2c', 2: '#e8842c', 3: '#f0cd6b' } },
-  gatetorch: { rows: ['030', '232', '111', '111', '111'],
-    colors: { 1: '#565b64', 2: '#e8842c', 3: '#f0cd6b' } },
 };
 
 /* A fixed piece of set dressing (campsite, gate posts) at a CSS position. */
@@ -1167,7 +1165,9 @@ function renderLaneBoard() {
         (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
         cellDecorHTML('road-' + suit + '-' + i) +
         (i === ROAD_LEN - 1
-          ? spriteImg('gatetorch', 'gt-l', 3) + spriteImg('gatetorch', 'gt-r', 3) + '<label>Gate</label>'
+          ? '<img class="site gate-flag gf-l" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
+            '<img class="site gate-flag gf-r" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
+            '<label>Gate</label>'
           : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }

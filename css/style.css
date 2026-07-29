@@ -1883,10 +1883,12 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 }
 .camp-tent { left: 5%; bottom: 4px; }
 .camp-fire { right: 7%; bottom: 5px; transform-origin: 50% 100%; animation: fireFlicker 0.65s steps(2) infinite; }
-.gt-l { left: 4%; top: 4px; }
-.gt-r { right: 4%; top: 4px; }
-.gt-l, .gt-r { transform-origin: 50% 20%; animation: fireFlicker 0.8s steps(2) infinite; }
-.gt-r { animation-delay: 0.4s; }
+.gate-flag { transform-origin: 10% 90%; animation: flagFlutter 1.1s steps(2) infinite; }
+.gf-l { left: 3%; top: 4px; }
+.gf-r { right: 3%; top: 4px; animation-delay: 0.55s; }
+@keyframes flagFlutter {
+  50% { transform: scaleX(0.88); }
+}
 @keyframes fireFlicker {
   50% { filter: brightness(1.4); }
 }
