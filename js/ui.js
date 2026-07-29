@@ -1187,11 +1187,30 @@ function renderLaneBoard() {
     '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" style="animation-duration:1.25s;animation-delay:-0.6s" alt="" draggable="false">' +
     cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
-    '<div class="lane-city-info">' +
-    '<b>' + (g.owner ? armyName(g.owner) : 'Mercenaries') + '</b>' +
-    '<span id="deckPile" class="lane-pile" title="The shared draw pile all four armies draw and flip from — when it empties, the season turns">Draw pile ' + game.deck.length + '</span>' +
-    '<span id="discardPile" class="lane-pile" title="Discarded cards — reshuffled into the draw pile when the season turns">Discard ' + game.discard.length + '</span>' +
-    '</div></div>';
+    (function () {
+      // Two real piles instead of stat lines; the flag already names the holder.
+      const back = (dx, dy) => '<img src="' + cardSprite(null, 's') +
+        '" width="32" height="44" style="transform:translate(' + dx + 'px,' + dy + 'px)" alt="" draggable="false">';
+      let draw = '<span class="pile-cards">';
+      const nb = Math.min(3, Math.max(1, Math.ceil(game.deck.length / 18)));
+      for (let b = nb - 1; b >= 0; b--) draw += game.deck.length ? back(b * 2, -b * 2) : '';
+      draw += '</span>';
+      const rots = [-12, 9, -5];
+      let disc = '<span class="pile-cards">';
+      game.discard.slice(-3).forEach((c, k) => {
+        disc += '<img src="' + cardSprite(c, 's') + '" width="32" height="44" style="transform:translate(' +
+          (k * 2 - 2) + 'px,' + (k - 1) + 'px) rotate(' + rots[k % 3] + 'deg)" alt="" draggable="false">';
+      });
+      disc += '</span>';
+      return '<div class="lane-city-info">' +
+        '<span id="deckPile" class="pile-vis' + (game.deck.length ? '' : ' empty') +
+        '" title="Draw pile — all four armies draw and flip from it; when it empties, the season turns">' +
+        draw + '<b>' + game.deck.length + '</b></span>' +
+        '<span id="discardPile" class="pile-vis discard' + (game.discard.length ? '' : ' empty') +
+        '" title="Discards — reshuffled into the draw pile when the season turns">' +
+        disc + '<b>' + game.discard.length + '</b></span>' +
+        '</div>';
+    })() + '</div>';
 
   // Four vertical lanes under the city: gate at the top, camp at the bottom,
   // so stacks visibly climb toward Kartenburg. Slots hold the real cards.
