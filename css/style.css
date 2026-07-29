@@ -2039,3 +2039,30 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   height: 42px;
   margin: 2px;
 }
+
+/* The hand as a held fan: overlapping, slightly arched, always fitting. */
+#bottomBar #handArea {
+  overflow: visible;
+  gap: 0.5rem;
+  justify-content: center;
+}
+#bottomBar #handArea .hand-cards,
+#handArea .hand-cards {
+  gap: 0;
+  justify-content: center;
+  padding-top: 14px;
+  overflow: visible;
+}
+#handArea .hand-slot {
+  --off: calc(var(--i, 0) - (var(--n, 1) - 1) / 2);
+  /* Overlap deepens as the hand grows, so 7 cards still fit a phone. */
+  margin-left: calc(-8px - var(--n, 1) * 2.4px);
+  transform: rotate(calc(var(--off) * 3.4deg))
+    translateY(calc(var(--off) * var(--off) * 2.6px));
+  transform-origin: 50% 115%;
+  z-index: calc(var(--i, 0) + 1);
+}
+#handArea .hand-slot:first-child { margin-left: 0; }
+#handArea .hand-slot:hover { z-index: 30; }
+/* fanned cards overlap their labels into mush — the faces speak for themselves */
+#handArea .hand-slot .hand-tag { display: none; }
