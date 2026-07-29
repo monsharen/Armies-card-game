@@ -730,10 +730,22 @@ function renderTurnBanner() {
   if (cur.isHuman && myTurn()) {
     if (ui.bannerSuit !== cur.suit) {
       ui.bannerSuit = cur.suit;
-      showBanner(SUIT_META[cur.suit].army + ' - YOUR TURN', {
-        tint: SUIT_META[cur.suit].tint, icon: SUIT_META[cur.suit].symbol, big: true,
-      });
-      sfx.draw();
+      const suit = cur.suit;
+      // The engine is already on our turn, but the fx queue may still be
+      // narrating the previous army's moves — hold the banner until the
+      // show finishes so announcements arrive in play order.
+      const tryShow = () => {
+        if (!game || game.over || game.pendingBattle) return;
+        const now = currentArmy(game);
+        if (!now.isHuman || now.suit !== suit || ui.bannerSuit !== suit) return;
+        const wait = fxUntil - Date.now();
+        if (wait > 60) { setTimeout(tryShow, wait + 80); return; }
+        showBanner(SUIT_META[suit].army + ' - YOUR TURN', {
+          tint: SUIT_META[suit].tint, icon: SUIT_META[suit].symbol, big: true,
+        });
+        sfx.draw();
+      };
+      setTimeout(tryShow, 0); // after this batch's fx are scheduled
     }
   } else if (!cur.isHuman) {
     ui.bannerSuit = null;
@@ -1306,7 +1318,7 @@ function renderHand() {
   const plans = active ? computeMarchPlans(game, handSuit) : [];
   const nSupply = supplyIndices(a).length;
 
-  let html = '<div class="hand-block"><div class="hand-cards">';
+  let html = '<div class="hand-block"><div class="hand-cards" style="--n:' + a.hand.length + '">';
   html += a.hand.map((card, i) => {
     const own = card.suit === handSuit;
     const classes = [];
