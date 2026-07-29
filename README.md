@@ -48,8 +48,8 @@ bitmap pixel font (with slowly waving letters on the menus), and a WebGL swirl
 shader runs at low resolution behind the table. Living cards (idle sway + 3D
 cursor tilt), flight trails, hitstop freeze-frames on captures, a count-up
 final scoreboard, chronicle events that splash on screen as they happen (the
-Chronicle panel keeps the full history), and generative WebAudio ambience and
-sound effects with a mute toggle. During play the UI goes full screen,
+Chronicle panel keeps the full history), a composed looping theme (audio/) with
+procedural WebAudio sound effects and a mute toggle. During play the UI goes full screen,
 console-style: a compact HUD, the board auto-scaled to the display, the hand as
 a bottom bar, themed pixel-letter action banners (with a screen slash for
 damage), and everything else — chronicle history, sound, fullscreen, rules —
