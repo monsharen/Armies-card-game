@@ -2255,38 +2255,34 @@ const sfx = (() => {
     src.start();
   }
 
-  // Generative ambience: a slow minor-pentatonic music box over a soft drone.
-  let musicTimer = null;
-  let beat = 0;
-  const SCALE = [220, 261.63, 293.66, 329.63, 392, 440];
-  function musicNote() {
-    if (muted) return;
-    const c = ac();
-    if (!c) return;
-    beat++;
-    if (beat % 4 === 1) tone(SCALE[0] / 2, 2.4, 'sine', 0.028);
-    if (Math.random() < 0.85) {
-      const n = SCALE[Math.floor(Math.random() * SCALE.length)];
-      tone(n, 1.6, 'triangle', 0.022, Math.random() * 0.3);
-      if (Math.random() < 0.3) tone(n * 1.5, 1.4, 'triangle', 0.014, 0.45);
+  // The score: a composed looping track (sfx stay procedural).
+  let music = null;
+  function ensureMusic() {
+    if (!music) {
+      music = new Audio('audio/main-theme.mp3');
+      music.loop = true;
+      music.volume = 0.55;
+      music.preload = 'auto';
     }
+    return music;
   }
 
   return {
     toggle() {
       muted = !muted;
       try { localStorage.setItem('kartenburg-muted', muted ? '1' : '0'); } catch (e) { }
-      if (muted) this.stopMusic(); else if (typeof game !== 'undefined' && game) this.startMusic();
+      if (muted) this.stopMusic();
+      else if (!document.body.classList.contains('on-title')) this.startMusic();
       return muted;
     },
     isMuted() { return muted; },
     startMusic() {
-      if (musicTimer || muted) return;
-      musicNote();
-      musicTimer = setInterval(musicNote, 1150);
+      if (muted) return;
+      const m = ensureMusic();
+      if (m.paused) m.play().catch(() => {}); // autoplay policy: retried on next gesture
     },
     stopMusic() {
-      if (musicTimer) { clearInterval(musicTimer); musicTimer = null; }
+      if (music && !music.paused) music.pause();
     },
     tick() { tone(980, 0.03, 'square', 0.028); },
     // Rising-pitch scoring ping: each chip in a cascade sounds higher.
