@@ -51,6 +51,8 @@ function newGame(numHumans, tutorialDeck) {
   ui.dealFlight = {};
   ui.scars = {};
   ui.flagShown = null;
+  ui.trayOpen = true;
+  ui.trayWasMyTurn = null;
   ui.terrainSeed = (Math.random() * 1e9) | 0;
   ui.glorySrc = {};
   for (const s of SUITS) ui.glorySrc[s] = { capture: 0, tribute: 0, season: 0 };
@@ -722,6 +724,39 @@ function render() {
   renderActionModal();
   renderTurnBanner();
   renderTutorial();
+  applyTray();
+}
+
+/* The action tray (hand + actions) floats over the board: it slides in
+ * when your turn starts, slides away when it ends, and the handle lets
+ * you peek at the field whenever you like. */
+function applyTray() {
+  const bar = document.getElementById('bottomBar');
+  if (!bar) return;
+  const mt = myTurn();
+  if (mt !== ui.trayWasMyTurn) {
+    ui.trayWasMyTurn = mt;
+    ui.trayOpen = mt; // turn transitions override any manual choice
+  }
+  paintTray();
+}
+
+function paintTray() {
+  const bar = document.getElementById('bottomBar');
+  if (!bar) return;
+  bar.classList.toggle('tray-hidden', !ui.trayOpen);
+  document.body.classList.toggle('tray-out', !ui.trayOpen);
+  const h = document.getElementById('trayHandle');
+  if (h) {
+    h.textContent = ui.trayOpen ? '▼' : '▲';
+    h.title = ui.trayOpen ? 'Hide your hand and see the field' : 'Show your hand';
+  }
+}
+
+function toggleTray() {
+  ui.trayOpen = !ui.trayOpen;
+  paintTray();
+  sfx.tick();
 }
 
 function renderTurnBanner() {

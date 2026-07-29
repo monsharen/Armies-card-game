@@ -2066,3 +2066,48 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 #handArea .hand-slot:hover { z-index: 30; }
 /* fanned cards overlap their labels into mush — the faces speak for themselves */
 #handArea .hand-slot .hand-tag { display: none; }
+
+/* ── The action tray floats over the board and slides with the turn ──── */
+body.lane-mode #gameArea { position: relative; }
+body.lane-mode .board-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* room to scroll the camps and enemy hands out from under the tray */
+  padding-bottom: 190px;
+  transition: padding-bottom 0.38s cubic-bezier(0.25, 1, 0.4, 1);
+}
+body.lane-mode.tray-out .board-viewport { padding-bottom: 34px; }
+body.lane-mode #bottomBar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  flex: none;
+  min-height: 0;
+  z-index: 45;
+  transition: transform 0.38s cubic-bezier(0.25, 1, 0.4, 1);
+  will-change: transform;
+}
+/* keep the bar's top border (and the handle riding on it) on screen */
+body.lane-mode #bottomBar.tray-hidden { transform: translateY(calc(100% - 3px)); }
+#trayHandle {
+  position: absolute;
+  top: -27px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 27px;
+  padding: 0 0 3px;
+  background: rgba(14, 17, 22, 0.88);
+  border: 3px solid var(--line);
+  border-bottom: none;
+  color: var(--gold);
+  font: inherit;
+  font-size: 0.6rem;
+  line-height: 1;
+  cursor: pointer;
+  image-rendering: pixelated;
+}
+#trayHandle:hover { color: #fff; }
