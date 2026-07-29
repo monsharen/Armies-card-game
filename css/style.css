@@ -1826,3 +1826,50 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   from { opacity: 0; transform: rotate(var(--rot, 0deg)) scale(2.4); }
   to { opacity: 1; transform: rotate(var(--rot, 0deg)) scale(1); }
 }
+
+/* The sandy road: a dithered path up the middle of each lane, camp to city. */
+.lane-path {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+.lane-road {
+  position: absolute;
+  left: 0;
+  top: -46px; /* run up under the city strip: the road ends at Kartenburg */
+  width: 100%;
+  height: calc(100% + 46px);
+  image-rendering: pixelated;
+  z-index: 0;
+  pointer-events: none;
+}
+.lane-head { position: relative; z-index: 2; }
+.lane-city { z-index: 2; }
+.lane-path .lane-slot { position: relative; z-index: 1; }
+
+/* Kartenburg as a castle: the strip is the wall itself. */
+.lane-city {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 15px 12px 8px;
+}
+.city-wall {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  z-index: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 0 rgba(0, 0, 0, 0.45));
+}
+.lane-city .stack .pcard { filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.5)); }
+.lane-city-info b,
+.lane-city-info .lane-pile {
+  background: rgba(10, 12, 18, 0.72);
+  padding: 1px 5px;
+}
+.lane-city .crown { text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
