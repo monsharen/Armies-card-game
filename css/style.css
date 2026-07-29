@@ -1906,7 +1906,8 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
   transform-origin: 12% 92%;
   animation: flagFlutter 1.25s steps(2) infinite;
   position: absolute;
-  top: 26px; /* pole planted, base buried in the wall's ground */
+  top: auto;
+  bottom: 0; /* anchored to the ground line, whatever the wall's height */
   left: calc(50% + 26px);
   z-index: 1;
   image-rendering: pixelated;
