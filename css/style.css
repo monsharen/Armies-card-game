@@ -1642,7 +1642,17 @@ body.lane-mode .hud-right .btn.slim:nth-child(4) { display: none; } /* zoom cont
   from { box-shadow: 0 0 0 rgba(208, 96, 80, 0); }
   to { box-shadow: 0 0 10px rgba(208, 96, 80, 0.9); border-color: #d06050; }
 }
-.lane-slot.camp { min-height: 64px; justify-content: flex-start; }
+.lane-slot.camp {
+  min-height: 64px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  align-content: flex-start;
+  gap: 4px;
+  padding-bottom: 5px;
+}
+.lane-slot.camp label { flex-basis: 100%; text-align: center; }
 .lane-camp-stack { cursor: default; }
 .lane-camp-stack.movable {
   cursor: pointer;
@@ -1689,3 +1699,14 @@ body.lane-mode .ticker { text-align: left; }
     from { transform: translateY(48px); opacity: 0; }
   }
 }
+
+/* Held hands: fanned card backs + count, shown for every human seat. */
+.hand-fan { display: inline-flex; align-items: flex-end; margin-left: 4px; }
+.hand-fan .fan-card {
+  image-rendering: pixelated;
+  margin-left: -11px;
+  transform: rotate(var(--r, 0deg));
+  transform-origin: 50% 95%;
+}
+.hand-fan .fan-card:first-child { margin-left: 0; }
+.hand-fan b { font-size: 0.5rem; color: var(--gold); margin-left: 3px; }

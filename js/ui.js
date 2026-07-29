@@ -1088,6 +1088,21 @@ function stackHTML(state, ownerSuit, cards) {
  * as a status strip, rivals as compact rows, your lane as the big track.
  * Cells keep their data-cell anchors so every FX flight still lands. */
 
+/* A held hand, seen from across the table: slightly fanned card backs
+ * plus the count. Automated armies hold no hand, so they get nothing. */
+function handFanHTML(n) {
+  if (!n) return '';
+  const shown = Math.min(n, 7);
+  let cards = '';
+  for (let i = 0; i < shown; i++) {
+    const rot = ((i - (shown - 1) / 2) * 9).toFixed(0);
+    cards += '<img class="fan-card" src="' + cardSprite(null, 's') +
+      '" width="16" height="22" style="--r:' + rot + 'deg" alt="" draggable="false">';
+  }
+  return '<span class="hand-fan" title="' + n + ' card' + (n === 1 ? '' : 's') + ' in hand">' +
+    cards + '<b>' + n + '</b></span>';
+}
+
 function viewerSuit() {
   const cur = currentArmy(game);
   if (cur.isHuman && (humanSuits().length <= 1 || ui.revealedSuit === cur.suit)) return cur.suit;
@@ -1122,8 +1137,9 @@ function renderLaneBoard() {
     html += '<div class="lane-col' + (mine ? ' mine' : '') + '" style="--tint:' + SUIT_META[suit].tint + '">' +
       '<div class="lane-head" title="' + armyName(suit) + '">' +
       '<span class="lane-sym">' + SUIT_META[suit].symbol + '</span>' +
-      '<span class="lane-posts">' + (a.posts.queen ? 'Q' : '') + (a.posts.king ? 'K' : '') +
-      (!a.isHuman && a.supply ? '<i>' + a.supply + '</i>' : '') + '</span></div>';
+      (a.isHuman ? handFanHTML(a.hand.length) : '') +
+      (!a.isHuman && a.supply ? '<span class="lane-posts"><i>' + a.supply + '</i></span>' : '') +
+      '</div>';
     for (let i = ROAD_LEN - 1; i >= 0; i--) {
       const stack = a.road[i];
       const movable = mine && can('road', i);
@@ -1135,7 +1151,14 @@ function renderLaneBoard() {
         (i === ROAD_LEN - 1 ? '<label>Gate</label>' : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }
-    html += '<div class="lane-slot camp" data-cell="camp-' + suit + '"><label>Camp</label>' +
+    // Camp: every played card is visible — posts (Q/K) as single cards,
+    // armies as overlapped stacks with their strength badge.
+    const posts = [
+      a.posts.queen && { c: a.posts.queen, t: 'Banner: all their armies fight at +2' },
+      a.posts.king && { c: a.posts.king, t: 'General: their marches cost 1 less' },
+    ].filter(Boolean).map(p =>
+      '<div class="lane-post" title="' + p.t + '">' + pcardHTML(p.c, 'mini') + '</div>').join('');
+    html += '<div class="lane-slot camp" data-cell="camp-' + suit + '"><label>Camp</label>' + posts +
       a.camp.map((s, i) => {
         const movable = mine && can('camp', i);
         return '<div class="lane-camp-stack' + (movable ? ' movable' : '') + '"' +
@@ -1167,9 +1190,10 @@ function renderBoard() {
     const posts = (a.posts.queen ? '<span class="post" title="Banner: armies fight at +2">Q</span>' : '') +
       (a.posts.king ? '<span class="post" title="General: marches cost 1 less">K</span>' : '');
     const supplyNote = !a.isHuman && a.supply ? '<span class="supply-note" title="Banked supply">⛽' + a.supply + '</span>' : '';
+    const fan = a.isHuman ? handFanHTML(a.hand.length) : '';
     html += '<div class="cell camp suit-' + suit + '" data-cell="camp-' + suit + '" style="grid-row:' + pos.camp[0] + ';grid-column:' + pos.camp[1] + '"' +
       ' title="' + armyName(suit) + ' camp — ' + a.camp.length + ' army(ies)">' +
-      '<div class="camp-head">' + meta.symbol + posts + supplyNote + '</div>' +
+      '<div class="camp-head">' + meta.symbol + posts + supplyNote + fan + '</div>' +
       '<div class="camp-chips">' + chips + '</div></div>';
 
     for (let i = 0; i < ROAD_LEN; i++) {
