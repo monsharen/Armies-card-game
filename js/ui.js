@@ -48,6 +48,7 @@ function newGame(numHumans, tutorialDeck) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
+  ui.dealFlight = {};
   ui.scars = {};
   ui.flagShown = null;
   ui.terrainSeed = (Math.random() * 1e9) | 0;
@@ -425,14 +426,20 @@ function markPendingHides(events) {
  * the overlay — one continuous card from deck to hand. */
 function dealCardToHand(suit) {
   const p = ui.pendingHide[suit] || 0;
-  if (p <= 0) return;
-  const idx = game.armies[suit].hand.length - p;
+  const f = (ui.dealFlight || {})[suit] || 0;
+  if (p - f <= 0) return; // every hidden card already has a deal in flight
+  // Reserve this card's slot at launch: staggered deals overlap in the air,
+  // so the next call must target the NEXT slot, not this one again.
+  const idx = game.armies[suit].hand.length - p + f;
+  ui.dealFlight = ui.dealFlight || {};
+  ui.dealFlight[suit] = f + 1;
   const card = game.armies[suit].hand[idx];
   const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
   const pc = slot && slot.querySelector('.pcard');
   const dest = pc ? pc.getBoundingClientRect() : drawDest(suit);
   sfx.draw();
   flyHTML(cardBackHTML(), stageDeckRect(1300), dest, 360, '', { land: () => {
+    ui.dealFlight[suit] = Math.max(0, (ui.dealFlight[suit] || 1) - 1);
     ui.pendingHide[suit] = Math.max(0, (ui.pendingHide[suit] || 0) - 1);
     const slot2 = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
     const pc2 = slot2 && slot2.querySelector('.pcard');
@@ -1617,6 +1624,7 @@ function playFx(events) {
       let stuck = false;
       for (const suit of handSuits) {
         if (ui.pendingHide[suit] > 0) { ui.pendingHide[suit] = 0; stuck = true; }
+        if (ui.dealFlight) ui.dealFlight[suit] = 0;
       }
       if (stuck) render();
     }, t + 600);
