@@ -2005,3 +2005,36 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 .lane-slot .go-arrow { top: -1px; bottom: auto; transform: translateX(-50%); }
 .lane-camp-stack { position: relative; }
 .lane-camp-stack .go-arrow { top: -12px; bottom: auto; padding: 2px 4px; }
+
+/* The draw and discard piles live on the wall as real (tiny) piles. */
+.lane-city-info { flex-direction: row; align-items: flex-end; gap: 12px; }
+.pile-vis {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.pile-vis .pile-cards {
+  position: relative;
+  width: 36px;
+  height: 46px;
+}
+.pile-vis .pile-cards img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  image-rendering: pixelated;
+  filter: drop-shadow(1px 2px 0 rgba(0, 0, 0, 0.45));
+}
+.pile-vis b {
+  font-size: 0.55rem;
+  color: var(--gold);
+  background: rgba(10, 12, 18, 0.72);
+  padding: 1px 5px;
+}
+.pile-vis.empty .pile-cards {
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  width: 32px;
+  height: 42px;
+  margin: 2px;
+}
