@@ -62,13 +62,7 @@ function newGame(numHumans, tutorialDeck) {
   const events = game.events.splice(0);
   markPendingHides(events);
   tallyGlory(events);
-  cam.map = null;
-  cam.turnKey = -1;
-  cam.manual = false;
   render();
-  measureBoard();
-  initCameraInput();
-  updateCamera(false);
   playFx(events);
   maybeScheduleNpc();
 }
@@ -186,7 +180,7 @@ const TUTORIAL_STEPS = [
       'most glory after two seasons of the deck takes the war. The richest prize sits at ' +
       'the center of the board — the city itself.', hl: () => '[data-cell="citadel"]' },
   { text: '<b>Kartenburg</b> is held by a mercenary garrison (strength 5 today). ' +
-      'Your road to its gate starts at your camp. <b>Capture the city: +5 glory.</b> ' +
+      'Your lane runs <b>upward</b> — from your camp at the bottom to the gate just below the city. <b>Capture the city: +5 glory.</b> ' +
       'Hold it: +1 every turn, +2 when a season turns.', hl: () => '[data-cell="camp-hearts"]' },
   { text: 'Your hand: <b>♥ cards fight for you</b>. Cards of other suits are <b>supply</b> — ' +
       'fuel for marching, not soldiers. You draw 2 at the start of each turn and take up to ' +
@@ -203,8 +197,8 @@ const TUTORIAL_STEPS = [
       'their own suit joins their camp, anything else piles up as supply, and the moment the pile ' +
       'covers their front army\'s march cost, <b>it marches</b>. Watch them go.' },
   { text: '<b>March!</b> Tap your army, then confirm. A march costs <b>1 supply per card in the ' +
-      'stack</b> — your off-suit cards are spent automatically. Advance one space per action and ' +
-      'reach the <b>gate</b> (the space beside Kartenburg). It will take a couple of turns.',
+      'stack</b> — your off-suit cards are spent automatically. Each march climbs one slot; ' +
+      'reach the <b>GATE</b> at the top of your lane. It will take a couple of turns.',
     hl: () => '[data-cell="road-hearts-2"]',
     when: g => !!g.armies.hearts.road[2] || g.garrison.owner === 'hearts' },
   { text: 'You stand at the gate! <b>Assault:</b> march once more to storm the city. Stack total vs ' +
@@ -280,7 +274,7 @@ const HOWTO_PAGES = [
       '<div class="ht-citadel"><span class="crown">👑</span>' +
       pcardHTML({ suit: 'spades', rank: '9', id: '9-spades' }, 'mini') +
       pcardHTML({ suit: 'diamonds', rank: '6', id: '6-diamonds' }, 'mini') + '</div></div>' +
-      '<p>Kartenburg sits at the center, held by mercenaries. Four armies march on it down four roads.</p>' +
+      '<p>Kartenburg is held by mercenaries. Four armies climb their lanes toward it — camp at the bottom, gate at the top.</p>' +
       '<p><b>Capture the city: +5 glory.</b> Hold it at the start of your turn: <b>+1 tribute</b>. ' +
       'Hold it when a season turns: <b>+2</b>. Win raids and defenses: +1. ' +
       'Most glory after two seasons of the deck wins the war.</p>' +
@@ -306,8 +300,8 @@ const HOWTO_PAGES = [
       '<div class="ht-actions">' +
       '<div><b>🚩 Deploy</b><br>Muster a new army in camp, or reinforce a camp army — ' +
       'stacks of up to <b>3 cards</b>, strength is their sum. Once an army marches out, its roster is fixed.</div>' +
-      '<div><b>🥾 March</b><br>Advance one space, paying supply. March onto your own army to <b>merge</b>; ' +
-      'march from the gate to <b>assault Kartenburg</b>.</div>' +
+      '<div><b>🥾 March</b><br>Climb one slot up your lane, paying supply. March onto your own army to <b>merge</b>; ' +
+      'march from the <b>gate</b> to assault Kartenburg.</div>' +
       '<div><b>🗡️ Raid</b><br>Your Jack strikes the <b>weakest card</b> of any enemy army on a road — ' +
       'or infiltrates an enemy camp to strike its <b>Banner or General</b> — then withdraws.</div>' +
       '<div><b>🤝 Trade</b><br>Swap 2 supply for 1 fresh card.</div>' +
@@ -386,231 +380,9 @@ function toggleFullscreen() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 
-/* ── Board camera: pan / zoom / auto-focus ────────────────────────────
- * On screens too small to show the whole table readably, the camera follows
- * whoever is playing, punches in on battles, and zooms out on demand. Drag,
- * pinch and wheel give manual control until the next turn. */
-
-const cam = {
-  x: 0, y: 0, z: 1,
-  w: 0, h: 0,           // unscaled board size
-  map: null,            // board-space rects of every cell, keyed by data-cell
-  manual: false,        // user drove the camera this turn
-  turnKey: -1,
-  punchT: null,
-};
-const CAM_MIN = 0.3;
-const CAM_MAX = 2.4;
-
-/* Portrait phones get the lane view (no 2D map, no camera); wide screens
- * keep the full table. Same data-cell anchors, so FX work in both. */
-const laneMQ = window.matchMedia('(max-width: 760px)');
-function laneOn() { return laneMQ.matches; }
-const laneModeChanged = () => {
-  if (!game) return;
-  document.body.classList.toggle('lane-mode', laneOn());
-  cam.map = null;
-  render();
-  if (!laneOn()) { measureBoard(); updateCamera(false); }
-};
-if (laneMQ.addEventListener) laneMQ.addEventListener('change', laneModeChanged);
-else if (laneMQ.addListener) laneMQ.addListener(laneModeChanged);
-
+/* The lane view is the one and only board — no camera, no pan/zoom.
+ * (Kept: the viewport lookup used by deck-flip FX fallbacks.) */
 function camViewport() { return document.querySelector('.board-viewport'); }
-function camScaler() { return document.querySelector('.board-scale'); }
-
-function measureBoard() {
-  const sc = camScaler();
-  if (!sc || laneOn()) return;
-  const t = sc.style.transform;
-  sc.style.transition = 'none';
-  sc.style.transform = 'none';
-  const sr = sc.getBoundingClientRect();
-  cam.w = sr.width;
-  cam.h = sr.height;
-  cam.map = {};
-  sc.querySelectorAll('[data-cell], .cell.pile').forEach(el => {
-    const key = el.dataset.cell || el.id;
-    const r = el.getBoundingClientRect();
-    cam.map[key] = { x: r.left - sr.left, y: r.top - sr.top, w: r.width, h: r.height };
-  });
-  sc.style.transform = t;
-}
-
-function applyCamera(animate) {
-  const sc = camScaler();
-  if (!sc || laneOn()) return;
-  sc.style.transition = animate ? 'transform 0.55s cubic-bezier(0.25, 0.8, 0.35, 1)' : 'none';
-  sc.style.transform = 'translate(' + cam.x.toFixed(1) + 'px,' + cam.y.toFixed(1) + 'px) scale(' + cam.z.toFixed(3) + ')';
-}
-
-function clampCam() {
-  const vp = camViewport();
-  if (!vp) return;
-  const bw = cam.w * cam.z;
-  const bh = cam.h * cam.z;
-  if (bw <= vp.clientWidth) cam.x = (vp.clientWidth - bw) / 2;
-  else cam.x = Math.min(48, Math.max(vp.clientWidth - bw - 48, cam.x));
-  if (bh <= vp.clientHeight) cam.y = (vp.clientHeight - bh) / 2;
-  else cam.y = Math.min(48, Math.max(vp.clientHeight - bh - 48, cam.y));
-}
-
-function frameRect(x, y, w, h, animate) {
-  const vp = camViewport();
-  if (!vp || !w || !h) return;
-  cam.z = Math.min(CAM_MAX, Math.max(CAM_MIN,
-    Math.min(vp.clientWidth / w, vp.clientHeight / h) * 0.93));
-  cam.x = vp.clientWidth / 2 - cam.z * (x + w / 2);
-  cam.y = vp.clientHeight / 2 - cam.z * (y + h / 2);
-  clampCam();
-  applyCamera(animate !== false);
-}
-
-function fitZ() {
-  const vp = camViewport();
-  if (!vp || !cam.w) return 1;
-  return Math.min(vp.clientWidth / cam.w, vp.clientHeight / cam.h) * 0.97;
-}
-
-function camFitAll(animate) {
-  frameRect(0, 0, cam.w, cam.h, animate);
-}
-
-function suitBBox(suit) {
-  const keys = ['camp-' + suit, 'citadel'];
-  for (let i = 0; i < ROAD_LEN; i++) keys.push('road-' + suit + '-' + i);
-  let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
-  for (const k of keys) {
-    const c = cam.map[k];
-    if (!c) continue;
-    x1 = Math.min(x1, c.x); y1 = Math.min(y1, c.y);
-    x2 = Math.max(x2, c.x + c.w); y2 = Math.max(y2, c.y + c.h);
-  }
-  const pad = 30;
-  return { x: x1 - pad, y: y1 - pad, w: x2 - x1 + pad * 2, h: y2 - y1 + pad * 2 };
-}
-
-function updateCamera(animate) {
-  if (!game || !cam.map || laneOn()) return;
-  if (cam.turnKey !== game.orderIdx) { cam.turnKey = game.orderIdx; cam.manual = false; }
-  if (cam.manual) return;
-  if (fitZ() >= 0.8) camFitAll(animate);
-  else {
-    const b = suitBBox(currentArmy(game).suit);
-    frameRect(b.x, b.y, b.w, b.h, animate);
-  }
-}
-
-/* Brief punch-in on a battle location, then back to the turn framing. */
-function camPunch(key) {
-  if (!cam.map || laneOn() || fitZ() >= 0.8) return;
-  const c = cam.map[key];
-  if (!c) return;
-  frameRect(c.x - 110, c.y - 110, c.w + 220, c.h + 220, true);
-  clearTimeout(cam.punchT);
-  cam.punchT = setTimeout(() => { if (game && !game.over) updateCamera(true); }, 1800);
-}
-
-function camZoomAt(sx, sy, z2) {
-  const vp = camViewport();
-  if (!vp) return;
-  const r = vp.getBoundingClientRect();
-  z2 = Math.min(CAM_MAX, Math.max(CAM_MIN, z2));
-  const px = (sx - r.left - cam.x) / cam.z;
-  const py = (sy - r.top - cam.y) / cam.z;
-  cam.z = z2;
-  cam.x = sx - r.left - px * z2;
-  cam.y = sy - r.top - py * z2;
-  clampCam();
-  applyCamera(false);
-}
-
-function camZoomBtn(dir) {
-  const vp = camViewport();
-  if (!vp) return;
-  cam.manual = true;
-  const r = vp.getBoundingClientRect();
-  camZoomAt(r.left + r.width / 2, r.top + r.height / 2, cam.z * (dir > 0 ? 1.25 : 0.8));
-}
-
-function camFitBtn() {
-  cam.manual = false;
-  updateCamera(true);
-}
-
-/* Drag to pan, pinch to zoom, wheel to zoom, double-tap to toggle overview. */
-function initCameraInput() {
-  const vp = camViewport();
-  if (!vp || vp.dataset.camReady) return;
-  vp.dataset.camReady = '1';
-  const pointers = new Map();
-  let dragged = false;
-  let pinchDist = 0;
-
-  vp.addEventListener('pointerdown', e => {
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    dragged = false;
-    if (pointers.size === 2) {
-      const p = Array.from(pointers.values());
-      pinchDist = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
-    }
-  });
-  vp.addEventListener('pointermove', e => {
-    if (laneOn() || !pointers.has(e.pointerId)) return;
-    const prev = pointers.get(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pointers.size === 1) {
-      const dx = e.clientX - prev.x;
-      const dy = e.clientY - prev.y;
-      if (dragged || Math.abs(dx) + Math.abs(dy) > 3) {
-        dragged = true;
-        cam.manual = true;
-        cam.x += dx;
-        cam.y += dy;
-        clampCam();
-        applyCamera(false);
-      }
-    } else if (pointers.size === 2) {
-      const p = Array.from(pointers.values());
-      const d = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
-      if (pinchDist > 0) {
-        dragged = true;
-        cam.manual = true;
-        camZoomAt((p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2, cam.z * (d / pinchDist));
-      }
-      pinchDist = d;
-    }
-  });
-  const endPointer = e => {
-    pointers.delete(e.pointerId);
-    pinchDist = 0;
-    if (dragged) {
-      // swallow the click that follows a drag so cells don't get tapped
-      window.addEventListener('click', ev => { ev.stopPropagation(); ev.preventDefault(); },
-        { capture: true, once: true });
-    }
-  };
-  vp.addEventListener('pointerup', endPointer);
-  vp.addEventListener('pointercancel', endPointer);
-  vp.addEventListener('wheel', e => {
-    if (laneOn()) return;
-    e.preventDefault();
-    cam.manual = true;
-    camZoomAt(e.clientX, e.clientY, cam.z * (e.deltaY < 0 ? 1.13 : 0.885));
-  }, { passive: false });
-  vp.addEventListener('dblclick', e => {
-    if (laneOn()) return;
-    e.preventDefault();
-    cam.manual = true;
-    if (cam.z > fitZ() * 1.05) camFitAll(true);
-    else {
-      const b = suitBBox(currentArmy(game).suit);
-      frameRect(b.x, b.y, b.w, b.h, true);
-    }
-  });
-}
-
-window.addEventListener('resize', () => { if (game) updateCamera(false); });
 
 function afterEngineCall() {
   const events = game.events.splice(0);
@@ -900,7 +672,6 @@ document.addEventListener('pointerleave', () => { if (tiltSlot) { resetTilt(tilt
 
 function render() {
   if (!game) return;
-  document.body.classList.toggle('lane-mode', laneOn());
   renderBoard();
   renderHand();
   renderSidebar();
@@ -909,7 +680,6 @@ function render() {
   renderActionModal();
   renderTurnBanner();
   renderTutorial();
-  updateCamera(true);
 }
 
 function renderTurnBanner() {
@@ -1131,13 +901,17 @@ function renderLaneBoard() {
   // Four vertical lanes under the city: gate at the top, camp at the bottom,
   // so stacks visibly climb toward Kartenburg. Slots hold the real cards.
   html += '<div class="lane-cols">';
+  const prevGlory = ui.glorySeen || {};
   for (const suit of SUITS) {
     const a = game.armies[suit];
     const mine = suit === you;
+    const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
     html += '<div class="lane-col' + (mine ? ' mine' : '') + '" style="--tint:' + SUIT_META[suit].tint + '">' +
-      '<div class="lane-head" title="' + armyName(suit) + '">' +
+      '<div class="lane-head" title="' + armyName(suit) + ' — ' + a.glory + ' glory">' +
       '<span class="lane-sym">' + SUIT_META[suit].symbol + '</span>' +
-      (a.isHuman ? handFanHTML(a.hand.length) : '') +
+      (game.garrison.owner === suit ? '<span class="lane-crown">👑</span>' : '') +
+      '<span class="lane-score' + (bumped ? ' bump' : '') + '" data-lane-score="' + suit + '">' +
+      a.glory + '</span>' +
       (!a.isHuman && a.supply ? '<span class="lane-posts"><i>' + a.supply + '</i></span>' : '') +
       '</div>';
     for (let i = ROAD_LEN - 1; i >= 0; i--) {
@@ -1166,6 +940,8 @@ function renderLaneBoard() {
           ' title="' + stackLabel(s.cards) + ' — strength ' + stackSum(s.cards) + '">' +
           stackHTML(game, suit, s.cards) + '</div>';
       }).join('') + '</div>';
+    // Their cards enter play from here: the held hand sits at the lane's foot.
+    html += '<div class="lane-foot">' + (a.isHuman ? handFanHTML(a.hand.length) : '') + '</div>';
     html += '</div>';
   }
   html += '</div>';
@@ -1173,67 +949,7 @@ function renderLaneBoard() {
 }
 
 function renderBoard() {
-  if (laneOn()) { renderLaneBoard(); return; }
-  const active = myTurn() && !mustDiscard() && !ui.modal;
-  const mySuit = game ? currentArmy(game).suit : null;
-  const plans = active ? myPlans() : [];
-  const nSupply = active ? supplyIndices(currentArmy(game)).length : 0;
-  let html = '';
-
-  for (const suit of SUITS) {
-    const a = game.armies[suit];
-    const pos = BOARD_POS[suit];
-    const meta = SUIT_META[suit];
-
-    const chips = a.camp.map(s =>
-      '<span class="army-chip" title="' + stackLabel(s.cards) + '">' + stackSum(s.cards) + '</span>').join('');
-    const posts = (a.posts.queen ? '<span class="post" title="Banner: armies fight at +2">Q</span>' : '') +
-      (a.posts.king ? '<span class="post" title="General: marches cost 1 less">K</span>' : '');
-    const supplyNote = !a.isHuman && a.supply ? '<span class="supply-note" title="Banked supply">⛽' + a.supply + '</span>' : '';
-    const fan = a.isHuman ? handFanHTML(a.hand.length) : '';
-    html += '<div class="cell camp suit-' + suit + '" data-cell="camp-' + suit + '" style="grid-row:' + pos.camp[0] + ';grid-column:' + pos.camp[1] + '"' +
-      ' title="' + armyName(suit) + ' camp — ' + a.camp.length + ' army(ies)">' +
-      '<div class="camp-head">' + meta.symbol + posts + supplyNote + fan + '</div>' +
-      '<div class="camp-chips">' + chips + '</div></div>';
-
-    for (let i = 0; i < ROAD_LEN; i++) {
-      const [row, col] = pos.road[i];
-      const stack = a.road[i];
-      const classes = ['cell', 'road', 'suit-' + suit];
-      if (active && stack && suit === mySuit &&
-        plans.some(p => p.from.zone === 'road' && p.from.idx === i && p.cost <= nSupply)) {
-        classes.push('movable');
-      }
-      html += '<div class="' + classes.join(' ') + '" data-cell="road-' + suit + '-' + i + '" style="grid-row:' + row + ';grid-column:' + col + '"' +
-        ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')">' +
-        (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
-    }
-  }
-
-  const g = game.garrison;
-  const citClasses = ['cell', 'citadel'];
-  if (g.owner) citClasses.push('owner-' + g.owner);
-  html += '<div class="' + citClasses.join(' ') + '" data-cell="citadel" style="grid-row:5;grid-column:5"' +
-    ' title="Kartenburg — held by ' + (g.owner ? armyName(g.owner) : 'mercenaries') +
-    ', defends at ' + effStrength(game, g.owner, g.cards) + '. Pays ' + GLORY.tribute +
-    ' glory per turn to its holder.">' +
-    '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) + '</div>';
-
-  // Draw deck and discard piles live on the table, top corners.
-  html += '<div id="deckPile" class="cell pile" style="grid-row:1 / span 2;grid-column:1 / span 2"' +
-    ' title="Draw deck — ' + game.deck.length + ' cards. Automated armies flip from here.">' +
-    (game.deck.length
-      ? '<div class="pile-stack">' + cardBackHTML('b3') + cardBackHTML('b2') + cardBackHTML() + '</div>'
-      : '<div class="pile-empty">empty</div>') +
-    '<span class="pile-count">Deck ' + game.deck.length + '</span></div>';
-  const topDisc = game.discard[game.discard.length - 1];
-  html += '<div id="discardPile" class="cell pile" style="grid-row:1 / span 2;grid-column:8 / span 2"' +
-    ' title="Discard — ' + game.discard.length + ' cards. Reshuffled when the season turns.">' +
-    (topDisc ? '<div class="pile-stack">' + pcardHTML(topDisc) + '</div>'
-      : '<div class="pile-empty">discard</div>') +
-    '<span class="pile-count">Discard ' + game.discard.length + '</span></div>';
-
-  document.getElementById('board').innerHTML = html;
+  renderLaneBoard();
 }
 
 function renderHand() {
@@ -1253,20 +969,7 @@ function renderHand() {
   const plans = active ? computeMarchPlans(game, handSuit) : [];
   const nSupply = supplyIndices(a).length;
 
-  let campHtml = '';
-  if (!laneOn()) { // in lane view the camp lives on the lane itself
-    campHtml = '<div class="camp-strip"><h3>Your camp</h3><div class="camp-armies">';
-    campHtml += a.camp.map((s, i) => {
-      const movable = plans.some(p => p.from.zone === 'camp' && p.from.idx === i && p.cost <= nSupply);
-      return '<div class="camp-army' + (movable ? ' movable' : '') + '"' +
-        (active ? ' onclick="startMarch(\'camp\',' + i + ')"' : '') + '>' +
-        stackHTML(game, handSuit, s.cards) + '</div>';
-    }).join('');
-    if (!a.camp.length) campHtml += '<p class="hint camp-hint">No armies yet</p>';
-    campHtml += '</div></div>';
-  }
-
-  let html = campHtml + '<div class="hand-block"><div class="hand-cards">';
+  let html = '<div class="hand-block"><div class="hand-cards">';
   html += a.hand.map((card, i) => {
     const own = card.suit === handSuit;
     const classes = [];
@@ -1286,23 +989,9 @@ function renderHand() {
 function renderSidebar() {
   const cur = currentArmy(game);
 
-  // Top HUD: army chips + season/deck counters
-  const prevGlory = ui.glorySeen || {};
-  let chips = '';
-  for (const suit of SUITS) {
-    const a = game.armies[suit];
-    const bumped = prevGlory[suit] !== undefined && prevGlory[suit] !== a.glory;
-    chips += '<span class="hud-chip' + (suit === cur.suit && !game.over ? ' current' : '') +
-      '" data-suit="' + suit + '" style="--tint:' + SUIT_META[suit].tint + '" title="' + armyName(suit) + ' — ' +
-      (a.isHuman ? playerLabel(suit) : 'Automated') + '">' +
-      '<b>' + SUIT_META[suit].symbol + '</b>' +
-      (game.garrison.owner === suit ? '👑' : '') +
-      '<span class="score-glory' + (bumped ? ' bump' : '') + '">' + a.glory + '</span>' +
-      '</span>';
-  }
+  // Scores live on the lanes; here we only refresh the bump bookkeeping.
   ui.glorySeen = {};
   for (const suit of SUITS) ui.glorySeen[suit] = game.armies[suit].glory;
-  document.getElementById('hudScore').innerHTML = chips;
   document.getElementById('hudInfo').textContent =
     'S' + game.season + '/' + SEASONS + ' · deck ' + game.deck.length +
     (game.deck.length === 0 ? ' — ' + (game.season >= SEASONS ? 'the war' : 'the season') + ' ends this round!'
@@ -1332,10 +1021,8 @@ function renderSidebar() {
   for (let i = 0; i < ACTIONS_PER_TURN; i++) {
     pips += '<span class="pip' + (i < game.actionsLeft ? ' on' : '') + '"></span>';
   }
-  panel.innerHTML = '<div class="action-pips" title="Actions left this turn · supply in hand">' +
-    '<span class="pips-label">Actions</span>' + pips +
-    '<span class="pips-label supply-tag">Supply</span><span class="supply-num">' +
-    supplyIndices(cur).length + '</span></div>' +
+  panel.innerHTML = '<div class="action-pips" title="Actions left this turn">' +
+    '<span class="pips-label">Actions</span>' + pips + '</div>' +
     (canTrade ? '<button class="btn" onclick="onTrade()" title="Trade 2 supply for 1 fresh card">Trade</button>' : '') +
     '<button class="btn" onclick="onEndTurn()" title="Hold position and end your turn">End turn</button>';
 }
@@ -1393,7 +1080,7 @@ function pendingStrengths() {
     return {
       att: strength(pb.jack) + qBonus(game.armies[pb.attacker]),
       def: strength(weak) + qBonus(game.armies[pb.targetSuit]),
-      what: 'raid your army on road space ' + (pb.roadIdx + 1),
+      what: 'raid your army on lane slot ' + (pb.roadIdx + 1),
       where: 'Your ' + cardLabel(weak),
     };
   }
@@ -1481,7 +1168,7 @@ function renderActionModal() {
         const weak = t.stack.cards[weakestOf(t.stack.cards)];
         const defStr = strength(weak) + qBonus(game.armies[t.suit]);
         body += amOption('modalRaid(\'' + t.suit + '\',' + t.idx + ')',
-          armyName(t.suit) + ' on road space ' + (t.idx + 1) + ': ' + stackLabel(t.stack.cards),
+          armyName(t.suit) + (t.idx === ROAD_LEN - 1 ? ' at their gate' : ' on lane slot ' + (t.idx + 1)) + ': ' + stackLabel(t.stack.cards),
           'Targets ' + cardLabel(weak) + ' → ' + battleForecast(attStr, defStr));
       }
       for (const t of postTargets()) {
@@ -1498,7 +1185,7 @@ function renderActionModal() {
         nSupply + '</strong> supply.</p>';
       for (const p of myPlans()) {
         const stack = p.from.zone === 'camp' ? cur.camp[p.from.idx] : cur.road[p.from.idx];
-        const where = p.from.zone === 'camp' ? 'in camp' : 'on road space ' + (p.from.idx + 1);
+        const where = p.from.zone === 'camp' ? 'in camp' : p.from.idx === ROAD_LEN - 1 ? 'at the gate' : 'on lane slot ' + (p.from.idx + 1);
         const affordable = p.cost <= nSupply;
         body += amOption(affordable ? 'pickMarchArmy(\'' + p.from.zone + '\',' + p.from.idx + ')' : '',
           stackLabel(stack.cards) + ' (' + where + ')',
@@ -1547,10 +1234,10 @@ function marchPlanText(plan, stack) {
   }
   if (plan.kind === 'merge') {
     const ahead = cur.road[plan.dest.idx];
-    return '🧩 Merge with ' + stackLabel(ahead.cards) + ' on road space ' + (plan.dest.idx + 1) +
+    return '🧩 Merge with ' + stackLabel(ahead.cards) + ' on lane slot ' + (plan.dest.idx + 1) +
       ' → combined strength ' + (stackSum(ahead.cards) + stackSum(stack.cards));
   }
-  return '➡️ Advance to road space ' + (plan.dest.idx + 1);
+  return '⬆️ Advance to ' + (plan.dest.idx === ROAD_LEN - 1 ? 'the gate' : 'lane slot ' + (plan.dest.idx + 1));
 }
 
 /* ── End of game ──────────────────────────────────────────────────────── */
@@ -1773,15 +1460,7 @@ function popSel(sel) {
 }
 
 function revealFromDeck(card, destSel, holdMs, onLand) {
-  let deckR = rectOf('#deckPile');
-  const vp = camViewport();
-  if (vp) {
-    const vr = vp.getBoundingClientRect();
-    if (!deckR || deckR.right < vr.left || deckR.left > vr.right ||
-      deckR.bottom < vr.top || deckR.top > vr.bottom) {
-      deckR = { left: vr.left + vr.width / 2 - 40, top: vr.top + 60, width: 80, height: 100 };
-    }
-  }
+  const deckR = stageDeckRect((holdMs || 620) + 700);
   if (!deckR) return;
   const rev = document.createElement('div');
   rev.className = 'fx-reveal';
@@ -1802,15 +1481,72 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
 const GOLD_SPARKS = ['#d4a72c', '#f0cd6b', '#fff3c4'];
 const BLOOD_SPARKS = ['#d06050', '#8a2f24', '#f0a08c'];
 
+/* Center-stage piles: the deck steps to mid-screen while cards are drawn
+ * and dealt from it; the trash pile appears while cards are thrown away,
+ * collecting them as a disorganized heap — then both slip away. */
+const stage = { deck: null, deckT: null, trash: null, trashT: null };
+
+function stageOut(key) {
+  const el = stage[key];
+  stage[key] = null;
+  if (el) {
+    el.classList.add('stage-out');
+    setTimeout(() => el.remove(), 380);
+  }
+}
+
+function stageDeckRect(holdMs) {
+  if (!stage.deck) {
+    const el = document.createElement('div');
+    el.className = 'fx-stage fx-stage-deck';
+    el.innerHTML = '<div class="pile-stack">' + cardBackHTML('b3') + cardBackHTML('b2') +
+      cardBackHTML() + '</div><span class="stage-label"></span>';
+    fxRoot().appendChild(el);
+    stage.deck = el;
+  }
+  const lbl = stage.deck.querySelector('.stage-label');
+  if (lbl && game) lbl.textContent = 'Deck ' + game.deck.length;
+  clearTimeout(stage.deckT);
+  stage.deckT = setTimeout(() => stageOut('deck'), holdMs || 1200);
+  return stage.deck.querySelector('.pile-stack').getBoundingClientRect();
+}
+
+function stageTrashRect(holdMs) {
+  if (!stage.trash) {
+    const el = document.createElement('div');
+    el.className = 'fx-stage fx-stage-trash';
+    el.innerHTML = '<div class="trash-cards"></div><span class="stage-label">Discard</span>';
+    fxRoot().appendChild(el);
+    stage.trash = el;
+  }
+  clearTimeout(stage.trashT);
+  stage.trashT = setTimeout(() => stageOut('trash'), holdMs || 1500);
+  return stage.trash.querySelector('.trash-cards').getBoundingClientRect();
+}
+
+/* A thrown card lands on the heap: random offset and tilt, nothing tidy. */
+function stageTrashLand(html) {
+  stageTrashRect(1500);
+  if (!stage.trash) return;
+  const holder = stage.trash.querySelector('.trash-cards');
+  const rot = (Math.random() * 56 - 28).toFixed(0);
+  const dx = (Math.random() * 30 - 15).toFixed(0);
+  const dy = (Math.random() * 18 - 9).toFixed(0);
+  holder.insertAdjacentHTML('beforeend',
+    '<span class="trash-card" style="transform:translate(calc(-50% + ' + dx + 'px), calc(-50% + ' +
+    dy + 'px)) rotate(' + rot + 'deg)">' + html + '</span>');
+  while (holder.children.length > 7) holder.removeChild(holder.firstChild);
+}
+
 /* A glory coin flies from where it was earned to that army's HUD score chip,
  * which pops on landing — the payoff always travels to the scoreboard. */
 function gloryFly(suit, amount, fromR) {
-  const chip = document.querySelector('#hudScore .hud-chip[data-suit="' + suit + '"]');
+  const chip = document.querySelector('[data-lane-score="' + suit + '"]');
   if (!fromR || !chip) return;
   flyHTML('<span class="glory-fly">🏅' + (amount > 1 ? '<b>×' + amount + '</b>' : '') + '</span>',
     fromR, chip.getBoundingClientRect(), 520);
   setTimeout(() => {
-    const c = document.querySelector('#hudScore .hud-chip[data-suit="' + suit + '"]');
+    const c = document.querySelector('[data-lane-score="' + suit + '"]');
     if (c) {
       c.classList.remove('chip-pop');
       void c.offsetWidth;
@@ -1900,7 +1636,7 @@ function runFx(ev) {
       showBanner('DRAWS ' + ev.count, suitOpts(ev.suit));
       for (let i = 0; i < ev.count; i++) {
         setTimeout(() => {
-          flyHTML(cardBackHTML(), deckR, drawDest(ev.suit), 380);
+          flyHTML(cardBackHTML(), stageDeckRect(1300), drawDest(ev.suit), 380);
           sfx.draw();
           setTimeout(() => revealNextHandCard(ev.suit), 370);
         }, i * 150);
@@ -1920,7 +1656,7 @@ function runFx(ev) {
       // (or to that player's camp corner when their hand is hidden).
       for (let i = 0; i < ev.count; i++) {
         setTimeout(() => {
-          flyHTML(cardBackHTML(), deckR, drawDest(ev.suit), 380);
+          flyHTML(cardBackHTML(), stageDeckRect(1300), drawDest(ev.suit), 380);
           sfx.draw();
           setTimeout(() => revealNextHandCard(ev.suit), 370);
         }, i * 150);
@@ -1969,7 +1705,6 @@ function runFx(ev) {
       break;
     }
     case 'assault': {
-      camPunch('citadel');
       battleDuel(ev);
       break;
     }
@@ -1989,7 +1724,6 @@ function runFx(ev) {
       break;
     }
     case 'raid': {
-      camPunch('road-' + ev.targetSuit + '-' + ev.roadIdx);
       showBanner(ev.won ? 'RAIDERS STRIKE!' : 'RAID REPELLED', { tint: '#d06050', variant: 'slash' });
       const targetSel = cellSel('road', ev.targetSuit, ev.roadIdx);
       const tr = rectOf(targetSel);
@@ -2012,13 +1746,17 @@ function runFx(ev) {
     }
     case 'supply': {
       for (let i = 0; i < ev.count; i++) {
-        setTimeout(() => { flyHTML(cardBackHTML(), handR, discR, 340); }, i * 110);
+        setTimeout(() => {
+          flyHTML(cardBackHTML(), handR, stageTrashRect(1500), 340);
+          setTimeout(() => stageTrashLand(cardBackHTML()), 330);
+        }, i * 110);
       }
       sfx.whoosh();
       break;
     }
     case 'toss': {
-      flyHTML(pcardHTML(ev.card, 'mini'), handR, discR, 320);
+      flyHTML(pcardHTML(ev.card, 'mini'), handR, stageTrashRect(1500), 320);
+      setTimeout(() => stageTrashLand(pcardHTML(ev.card, 'mini')), 310);
       sfx.whoosh();
       break;
     }
@@ -2046,12 +1784,12 @@ function runFx(ev) {
     }
     case 'reserve': {
       showBanner('A RESERVE JOINS THE LINE', suitOpts(ev.suit, { icon: '🛡️' }));
-      flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, discR, 380);
+      flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, stageTrashRect(1500), 380);
+      setTimeout(() => stageTrashLand(pcardHTML(ev.card, 'mini')), 370);
       sfx.place();
       break;
     }
     case 'postraid': {
-      camPunch('camp-' + ev.targetSuit);
       showBanner(ev.won ? (ev.post === 'queen' ? 'THE BANNER FALLS!' : 'THE GENERAL FALLS!') : 'THE CAMP HOLDS',
         { tint: ev.won ? '#d06050' : SUIT_META[ev.targetSuit].tint, variant: 'slash' });
       const campSel = cellSel('camp', ev.targetSuit);
@@ -2185,6 +1923,7 @@ function toggleSound() {
 document.addEventListener('DOMContentLoaded', () => {
   updateMuteBtns();
   document.body.classList.add('pixel-mode');
+  document.body.classList.add('lane-mode'); // the lane view is the only view
   const title = document.getElementById('titleScreen');
   buildTitleFx('menuFx');
   if (title) {
