@@ -420,17 +420,42 @@ function markPendingHides(events) {
   }
 }
 
-function revealNextHandCard(suit) {
+/* Deal one pending card: the back flies from the stage deck to its exact
+ * hand slot, flips over in place, and the real card takes over beneath
+ * the overlay — one continuous card from deck to hand. */
+function dealCardToHand(suit) {
   const p = ui.pendingHide[suit] || 0;
   if (p <= 0) return;
-  ui.pendingHide[suit] = p - 1;
   const idx = game.armies[suit].hand.length - p;
+  const card = game.armies[suit].hand[idx];
   const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
-  if (slot) {
-    slot.classList.remove('deal-hide');
-    slot.classList.add('deal-pop');
-    setTimeout(() => slot.classList.remove('deal-pop'), 450);
-  }
+  const pc = slot && slot.querySelector('.pcard');
+  const dest = pc ? pc.getBoundingClientRect() : drawDest(suit);
+  flyHTML(cardBackHTML(), stageDeckRect(1300), dest, 360);
+  sfx.draw();
+  setTimeout(() => {
+    ui.pendingHide[suit] = Math.max(0, (ui.pendingHide[suit] || 0) - 1);
+    const slot2 = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
+    const pc2 = slot2 && slot2.querySelector('.pcard');
+    if (!slot2 || !pc2 || !card || !pc2.getClientRects().length) {
+      if (slot2) slot2.classList.remove('deal-hide'); // hand not on screen: no flip
+      return;
+    }
+    const r = pc2.getBoundingClientRect();
+    const flip = document.createElement('div');
+    flip.className = 'fx-dealflip';
+    flip.style.left = (r.left + r.width / 2) + 'px';
+    flip.style.top = (r.top + r.height / 2) + 'px';
+    flip.innerHTML = '<div class="fx-flip3d"><div class="face back">' + cardBackHTML() +
+      '</div><div class="face front">' + pcardHTML(card) + '</div></div>';
+    fxRoot().appendChild(flip);
+    sfx.flip();
+    setTimeout(() => {
+      const s3 = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
+      if (s3) s3.classList.remove('deal-hide');
+      flip.remove();
+    }, 600);
+  }, 355);
 }
 
 /* Where the next drawn card should land: its future hand slot when that hand
@@ -1097,15 +1122,15 @@ function battleScar(key, types) {
 
 /* An automated army's banked supply: a staggered pile of card backs plus
  * the count — the pile its next march will be paid from. */
-function supplyPileHTML(n) {
-  if (!n) return '';
+function supplyPileHTML(n, suit) {
+  if (!n) return '<span class="supply-pile" data-supply="' + suit + '"></span>';
   const shown = Math.min(n, 4);
   let cards = '';
   for (let i = 0; i < shown; i++) {
     cards += '<img class="pile-card" src="' + cardSprite(null, 's') +
       '" width="16" height="22" style="--i:' + i + '" alt="" draggable="false">';
   }
-  return '<span class="supply-pile" title="Banked supply: ' + n +
+  return '<span class="supply-pile" data-supply="' + suit + '" title="Banked supply: ' + n +
     ' — their front army marches once this covers its cost">' + cards + '<b>' + n + '</b></span>';
 }
 
@@ -1192,7 +1217,7 @@ function renderLaneBoard() {
     // Their cards enter play from here: humans show their held hand,
     // automated armies their banked supply pile.
     html += '<div class="lane-foot">' +
-      (a.isHuman ? handFanHTML(a.hand.length) : supplyPileHTML(a.supply)) + '</div>';
+      (a.isHuman ? handFanHTML(a.hand.length) : supplyPileHTML(a.supply, suit)) + '</div>';
     html += '</div>';
   }
   html += '</div>';
@@ -1570,9 +1595,9 @@ function toast(msg) {
 let fxUntil = 0;
 
 const FX_DUR = {
-  draw: 420, flip: 950, deploy: 480, march: 520, assault: 2600, capture: 700,
+  draw: 800, flip: 950, deploy: 480, march: 520, assault: 2600, capture: 700,
   raid: 750, tribute: 420, supply: 380, toss: 320, season: 950,
-  deal: 780, garrison: 1550,
+  deal: 1400, garrison: 1550,
   defense: 650, reserve: 620, postraid: 780, seasonHold: 900,
 };
 
@@ -1723,9 +1748,21 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
   popSel('#deckPile');
   sfx.flip();
   setTimeout(() => {
-    flyHTML(pcardHTML(card, 'mini'), rev.getBoundingClientRect(), rectOf(destSel), 360);
+    const fromR = rev.getBoundingClientRect();
     rev.remove();
-    if (onLand) setTimeout(onLand, 360);
+    if (destSel === 'trash') {
+      flyHTML(pcardHTML(card, 'mini'), fromR, stageTrashRect(1500), 380);
+      setTimeout(() => {
+        stageTrashLand(pcardHTML(card, 'mini'));
+        sfx.whoosh();
+        if (onLand) onLand();
+      }, 380);
+    } else if (destSel) {
+      flyHTML(pcardHTML(card, 'mini'), fromR, rectOf(destSel), 360);
+      if (onLand) setTimeout(onLand, 360);
+    } else if (onLand) {
+      onLand();
+    }
   }, holdMs || 620);
 }
 
@@ -1868,6 +1905,14 @@ function battleDuel(ev) {
     sides[ev.won ? 0 : 1].classList.add('duel-win');
     sides[ev.won ? 1 : 0].classList.add('duel-lose');
     battleScar('citadel', ev.won ? ['blood', 'helmet'] : ['blood', 'sword']);
+    const fallen = ev.won ? defCards : attCards;
+    const cityR = rectOf(cellSel('citadel'));
+    fallen.forEach((c, i) => {
+      setTimeout(() => {
+        flyHTML(pcardHTML(c, 'mini'), cityR, stageTrashRect(1600), 380);
+        setTimeout(() => stageTrashLand(pcardHTML(c, 'mini')), 370);
+      }, 350 + i * 140);
+    });
     sfx.thud();
     if (!ev.won) {
       showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
@@ -1887,31 +1932,29 @@ function runFx(ev) {
     case 'draw': {
       showBanner('DRAWS ' + ev.count, suitOpts(ev.suit));
       for (let i = 0; i < ev.count; i++) {
-        setTimeout(() => {
-          flyHTML(cardBackHTML(), stageDeckRect(1300), drawDest(ev.suit), 380);
-          sfx.draw();
-          setTimeout(() => revealNextHandCard(ev.suit), 370);
-        }, i * 150);
+        setTimeout(() => dealCardToHand(ev.suit), i * 220);
       }
       break;
     }
     case 'flip': {
-      const destSel = (ev.action === 'muster' || ev.action === 'post')
-        ? cellSel('camp', ev.suit) : '#discardPile';
-      revealFromDeck(ev.card, destSel, 620, () => {
-        if (destSel !== '#discardPile') { popSel(destSel); sfx.place(); } else sfx.whoosh();
-      });
+      if (ev.action === 'muster' || ev.action === 'post') {
+        const destSel = cellSel('camp', ev.suit);
+        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.place(); });
+      } else if (ev.action === 'supply-bank') {
+        const destSel = '[data-supply="' + ev.suit + '"]';
+        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.place(); });
+      } else if (ev.action === 'supply-march') {
+        revealFromDeck(ev.card, 'trash', 620, null); // spent at once
+      } else {
+        revealFromDeck(ev.card, null, 700, null); // raid: the jack rides out next
+      }
       break;
     }
     case 'deal': {
       // Opening hands: card backs stream from the deck onto each hand slot
       // (or to that player's camp corner when their hand is hidden).
       for (let i = 0; i < ev.count; i++) {
-        setTimeout(() => {
-          flyHTML(cardBackHTML(), stageDeckRect(1300), drawDest(ev.suit), 380);
-          sfx.draw();
-          setTimeout(() => revealNextHandCard(ev.suit), 370);
-        }, i * 150);
+        setTimeout(() => dealCardToHand(ev.suit), i * 220);
       }
       break;
     }
@@ -1993,7 +2036,8 @@ function runFx(ev) {
       showBanner(ev.won ? 'RAIDERS STRIKE!' : 'RAID REPELLED', { tint: '#d06050', variant: 'slash' });
       const targetSel = cellSel('road', ev.targetSuit, ev.roadIdx);
       const tr = rectOf(targetSel);
-      flyHTML(pcardHTML(ev.jack), deckR && !game.armies[ev.attacker].isHuman ? deckR : (handR || deckR), tr, 420, 'spin');
+      const src = game.armies[ev.attacker].isHuman ? (handR || tr) : stageDeckRect(700);
+      flyHTML(pcardHTML(ev.jack), src, tr, 420, 'spin');
       setTimeout(() => {
         flashAt(tr);
         shake('sm');
@@ -2002,6 +2046,10 @@ function runFx(ev) {
         gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, tr);
         battleScar('road-' + ev.targetSuit + '-' + ev.roadIdx, ev.won ? ['blood', 'sword'] : ['blood', 'spear']);
         sfx.thud();
+        setTimeout(() => { // raiders withdraw: the jack lands on the heap
+          flyHTML(pcardHTML(ev.jack, 'mini'), tr, stageTrashRect(1500), 360);
+          setTimeout(() => stageTrashLand(pcardHTML(ev.jack, 'mini')), 350);
+        }, 320);
       }, 430);
       break;
     }
@@ -2061,7 +2109,7 @@ function runFx(ev) {
         { tint: ev.won ? '#d06050' : SUIT_META[ev.targetSuit].tint, variant: 'slash' });
       const campSel = cellSel('camp', ev.targetSuit);
       const cr = rectOf(campSel);
-      flyHTML(cardBackHTML(), deckR, cr, 420, 'spin');
+      flyHTML(cardBackHTML(), handR || cr, cr, 420, 'spin');
       setTimeout(() => {
         flashAt(cr);
         shake(ev.won ? 'md' : 'sm');
