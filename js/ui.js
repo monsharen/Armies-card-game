@@ -1165,8 +1165,7 @@ function renderLaneBoard() {
         (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
         cellDecorHTML('road-' + suit + '-' + i) +
         (i === ROAD_LEN - 1
-          ? '<img class="site gate-flag gf-l" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
-            '<img class="site gate-flag gf-r" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
+          ? '<img class="site gate-flag" src="' + flagSprite(suit) + '" width="20" height="30" alt="" draggable="false">' +
             '<label>Gate</label>'
           : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
