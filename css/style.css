@@ -1901,7 +1901,7 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 /* The occupant's banner over the gate: lowered and hoisted on capture. */
 .city-flag {
   position: absolute;
-  top: 2px;
+  top: 14px; /* pole planted, sticking out of the wall's ground */
   left: calc(50% + 26px);
   z-index: 1;
   image-rendering: pixelated;
