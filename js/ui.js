@@ -48,6 +48,8 @@ function newGame(numHumans, tutorialDeck) {
   ui.bannerSuit = null;
   ui.glorySeen = null;
   ui.pendingHide = {};
+  ui.scars = {};
+  ui.terrainSeed = (Math.random() * 1e9) | 0;
   ui.glorySrc = {};
   for (const s of SUITS) ui.glorySrc[s] = { capture: 0, tribute: 0, season: 0 };
   game = createGame(numHumans, tutorialDeck);
@@ -873,6 +875,94 @@ function handFanHTML(n) {
     cards + '<b>' + n + '</b></span>';
 }
 
+/* ── The battleground: terrain dressing and battle scars ──────────────
+ * Lanes are dressed with grass tufts and rocks (seeded per game, stable
+ * across renders), and battles leave permanent debris — blood pools,
+ * swords and spears stuck in the ground, fallen helmets — at the exact
+ * cells where they happened. The field remembers the war. */
+
+const DECOR = {
+  grass: { rows: ['0010010', '0101101', '1101011'], colors: { 1: '#41663a' } },
+  grass2: { rows: ['010010', '101101'], colors: { 1: '#38572f' } },
+  rock: { rows: ['0110', '1111', '1111'], colors: { 1: '#565d68' } },
+  pebble: { rows: ['11', '11'], colors: { 1: '#474d57' } },
+  blood: { rows: ['0011000', '0111110', '1111111', '0111100'], colors: { 1: '#5e1212' } },
+  sword: { rows: ['020', '030', '111', '020', '020', '020'],
+    colors: { 1: '#d4a72c', 2: '#b7c0cc', 3: '#6b4a2c' } },
+  spear: { rows: ['1', '2', '2', '2', '2', '2', '2'], colors: { 1: '#b7c0cc', 2: '#6b4a2c' } },
+  helmet: { rows: ['01110', '11111', '12121'], colors: { 1: '#7a828e', 2: '#23252c' } },
+};
+const decorCache = new Map();
+
+function decorSprite(name) {
+  if (decorCache.has(name)) return decorCache.get(name);
+  const d = DECOR[name];
+  const cv = document.createElement('canvas');
+  cv.width = d.rows[0].length;
+  cv.height = d.rows.length;
+  drawPix(cv.getContext('2d'), d.rows, 0, 0, d.colors);
+  const url = cv.toDataURL();
+  decorCache.set(name, url);
+  return url;
+}
+
+function decorImg(name, x, y, rot, cls) {
+  const d = DECOR[name];
+  return '<img class="' + cls + '" src="' + decorSprite(name) + '" width="' + d.rows[0].length * 2 +
+    '" height="' + d.rows.length * 2 + '" style="left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) +
+    '%;--rot:' + (rot || 0) + 'deg" alt="" draggable="false">';
+}
+
+function hashStr(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return h;
+}
+
+function mulberry32(a) {
+  return function () {
+    a |= 0;
+    a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+/* Stable per-cell terrain plus whatever scars the war has left there. */
+function cellDecorHTML(key) {
+  let html = '';
+  const rnd = mulberry32((ui.terrainSeed || 1) + hashStr(key));
+  const n = 2 + Math.floor(rnd() * 3);
+  const kinds = ['grass', 'grass2', 'rock', 'grass', 'pebble'];
+  for (let i = 0; i < n; i++) {
+    html += decorImg(kinds[Math.floor(rnd() * kinds.length)],
+      6 + rnd() * 76, 12 + rnd() * 68, 0, 'decor');
+  }
+  for (const s of (ui.scars && ui.scars[key]) || []) {
+    html += decorImg(s.t, s.x, s.y, s.rot, 'scar');
+  }
+  return html;
+}
+
+/* A battle just happened here: drop debris, store it, and pop it in live. */
+function battleScar(key, types) {
+  if (!ui.scars) return;
+  for (const t of types) {
+    const s = {
+      t,
+      x: 8 + Math.random() * 70,
+      y: 15 + Math.random() * 56,
+      rot: (t === 'sword' || t === 'spear') ? Math.random() * 44 - 22 : 0,
+    };
+    ui.scars[key] = ui.scars[key] || [];
+    ui.scars[key].push(s);
+    while (ui.scars[key].length > 6) ui.scars[key].shift();
+    const cell = document.querySelector('[data-cell="' + key + '"]');
+    if (cell) cell.insertAdjacentHTML('beforeend', decorImg(s.t, s.x, s.y, s.rot, 'scar scar-new'));
+  }
+}
+
 /* An automated army's banked supply: a staggered pile of card backs plus
  * the count — the pile its next march will be paid from. */
 function supplyPileHTML(n) {
@@ -905,11 +995,12 @@ function renderLaneBoard() {
   let html = '<div class="lane-city" data-cell="citadel"' +
     (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
+    cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
     '<div class="lane-city-info">' +
     '<b>' + (g.owner ? armyName(g.owner) : 'Mercenaries') + '</b>' +
-    '<span id="deckPile" class="lane-pile">Deck ' + game.deck.length + '</span>' +
-    '<span id="discardPile" class="lane-pile">Waste ' + game.discard.length + '</span>' +
+    '<span id="deckPile" class="lane-pile" title="The shared draw pile all four armies draw and flip from — when it empties, the season turns">Draw pile ' + game.deck.length + '</span>' +
+    '<span id="discardPile" class="lane-pile" title="Discarded cards — reshuffled into the draw pile when the season turns">Discard ' + game.discard.length + '</span>' +
     '</div></div>';
 
   // Four vertical lanes under the city: gate at the top, camp at the bottom,
@@ -935,6 +1026,7 @@ function renderLaneBoard() {
         (stack && i === ROAD_LEN - 1 && !mine ? ' threat' : '') +
         '" data-cell="road-' + suit + '-' + i + '"' +
         (mine ? ' onclick="onCellClick(\'road\',\'' + suit + '\',' + i + ')"' : '') + '>' +
+        cellDecorHTML('road-' + suit + '-' + i) +
         (i === ROAD_LEN - 1 ? '<label>Gate</label>' : '') +
         (stack ? stackHTML(game, suit, stack.cards) : '') + '</div>';
     }
@@ -945,7 +1037,8 @@ function renderLaneBoard() {
       a.posts.king && { c: a.posts.king, t: 'General: their marches cost 1 less' },
     ].filter(Boolean).map(p =>
       '<div class="lane-post" title="' + p.t + '">' + pcardHTML(p.c, 'mini') + '</div>').join('');
-    html += '<div class="lane-slot camp" data-cell="camp-' + suit + '"><label>Camp</label>' + posts +
+    html += '<div class="lane-slot camp" data-cell="camp-' + suit + '">' +
+      cellDecorHTML('camp-' + suit) + '<label>Camp</label>' + posts +
       a.camp.map((s, i) => {
         const movable = mine && can('camp', i);
         return '<div class="lane-camp-stack' + (movable ? ' movable' : '') + '"' +
@@ -1520,7 +1613,7 @@ function stageDeckRect(holdMs) {
     stage.deck = el;
   }
   const lbl = stage.deck.querySelector('.stage-label');
-  if (lbl && game) lbl.textContent = 'Deck ' + game.deck.length;
+  if (lbl && game) lbl.textContent = 'Draw pile ' + game.deck.length;
   clearTimeout(stage.deckT);
   stage.deckT = setTimeout(() => stageOut('deck'), holdMs || 1200);
   return stage.deck.querySelector('.pile-stack').getBoundingClientRect();
@@ -1631,6 +1724,7 @@ function battleDuel(ev) {
     sparks(r, ev.won ? GOLD_SPARKS : BLOOD_SPARKS, ev.won ? 20 : 14);
     sides[ev.won ? 0 : 1].classList.add('duel-win');
     sides[ev.won ? 1 : 0].classList.add('duel-lose');
+    battleScar('citadel', ev.won ? ['blood', 'helmet'] : ['blood', 'sword']);
     sfx.thud();
     if (!ev.won) {
       showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
@@ -1749,6 +1843,7 @@ function runFx(ev) {
         sparks(tr, BLOOD_SPARKS, 12);
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', tr, ev.won ? 'red big' : 'gold');
         gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, tr);
+        battleScar('road-' + ev.targetSuit + '-' + ev.roadIdx, ev.won ? ['blood', 'sword'] : ['blood', 'spear']);
         sfx.thud();
       }, 430);
       break;
@@ -1816,6 +1911,7 @@ function runFx(ev) {
         sparks(cr, BLOOD_SPARKS, ev.won ? 18 : 10);
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', cr, ev.won ? 'red big' : 'gold');
         gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, cr);
+        battleScar('camp-' + ev.targetSuit, ev.won ? ['blood', 'helmet'] : ['blood', 'spear']);
         sfx.thud();
       }, 430);
       break;

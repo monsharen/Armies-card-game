@@ -1800,3 +1800,29 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 }
 .supply-pile .pile-card:first-child { margin-left: 0; }
 .supply-pile b { font-size: 0.5rem; color: var(--gold); margin-left: 5px; }
+
+/* ── Battleground dressing: soil, grass, rocks and the scars of war ──── */
+.lane-cols {
+  background: radial-gradient(ellipse at 50% 0%, #233220 0%, #1a2417 55%, #12180f 100%);
+  border: 3px solid #3a2c1c;
+  box-shadow: inset 0 0 44px rgba(0, 0, 0, 0.55), 4px 4px 0 rgba(0, 0, 0, 0.45);
+  padding: 8px 6px;
+}
+.lane-city { position: relative; overflow: hidden; }
+.lane-slot { overflow: hidden; }
+.decor, .scar {
+  position: absolute;
+  image-rendering: pixelated;
+  pointer-events: none;
+  z-index: 0;
+  transform: rotate(var(--rot, 0deg));
+}
+.decor { opacity: 0.85; }
+.scar { z-index: 1; filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.5)); }
+.lane-slot label, .lane-slot .stack, .lane-camp-stack, .lane-post,
+.lane-city .crown, .lane-city .stack, .lane-city-info { position: relative; z-index: 2; }
+.scar.scar-new { animation: scarIn 0.45s ease-out; }
+@keyframes scarIn {
+  from { opacity: 0; transform: rotate(var(--rot, 0deg)) scale(2.4); }
+  to { opacity: 1; transform: rotate(var(--rot, 0deg)) scale(1); }
+}
