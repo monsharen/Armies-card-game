@@ -431,9 +431,8 @@ function dealCardToHand(suit) {
   const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
   const pc = slot && slot.querySelector('.pcard');
   const dest = pc ? pc.getBoundingClientRect() : drawDest(suit);
-  flyHTML(cardBackHTML(), stageDeckRect(1300), dest, 360);
   sfx.draw();
-  setTimeout(() => {
+  flyHTML(cardBackHTML(), stageDeckRect(1300), dest, 360, '', { land: () => {
     ui.pendingHide[suit] = Math.max(0, (ui.pendingHide[suit] || 0) - 1);
     const slot2 = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
     const pc2 = slot2 && slot2.querySelector('.pcard');
@@ -455,7 +454,7 @@ function dealCardToHand(suit) {
       if (s3) s3.classList.remove('deal-hide');
       flip.remove();
     }, 600);
-  }, 355);
+  } });
 }
 
 /* Where the next drawn card should land: its future hand slot when that hand
@@ -1645,7 +1644,7 @@ function cardBackHTML(cls) {
   return '<div class="pcard back' + (cls ? ' ' + cls : '') + '"></div>';
 }
 
-function flyHTML(html, fromR, toR, ms, cls) {
+function flyHTML(html, fromR, toR, ms, cls, opts) {
   if (!fromR || !toR) return;
   const dx = (toR.left + toR.width / 2) - (fromR.left + fromR.width / 2);
   const dy = (toR.top + toR.height / 2) - (fromR.top + fromR.height / 2);
@@ -1665,7 +1664,13 @@ function flyHTML(html, fromR, toR, ms, cls) {
         el.style.transform = 'translate(-50%,-50%) translate(' + dx + 'px,' + dy + 'px)';
         if (ghost) el.style.opacity = '0';
       });
-      setTimeout(() => el.remove(), ms + 140);
+      if (!ghost && opts && opts.land) {
+        // Hand off exactly at touchdown: remove the flying card and let the
+        // landing effect take over in the same tick — never two cards.
+        setTimeout(() => { el.remove(); opts.land(); }, ms);
+      } else {
+        setTimeout(() => el.remove(), ms + 140);
+      }
     }, delay);
   };
   spawn(0, '1', false);      // the card
