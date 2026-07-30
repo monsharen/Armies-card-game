@@ -1865,27 +1865,33 @@ body.lane-mode #bottomBar { width: 100%; max-width: 520px; margin: 0 auto; }
 }
 .lane-slot.gate label { letter-spacing: 0.2em; }
 
-/* The occupant's banner over the gate: lowered and hoisted on capture. */
-.city-flag {
-  transform-origin: 12% 92%;
-  animation: flagFlutter 1.25s steps(2) infinite;
+/* The occupant's colors hang either side of the gate, swaying on the wall.
+ * Percentage placement keeps them flanking the arch at any board width. */
+.city-banner {
   position: absolute;
-  top: auto;
-  bottom: 0; /* anchored to the ground line, whatever the wall's height */
-  left: calc(50% + 26px);
+  top: 19%;
   z-index: 1;
   image-rendering: pixelated;
   pointer-events: none;
+  transform-origin: 50% 0;
+  animation: bannerSway 3.1s ease-in-out infinite alternate;
   filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, 0.45));
 }
-/* The ceremony overrides the idle flutter (and its inline phase). */
-.city-flag.flag-lower { animation: flagLower 0.42s ease-in forwards !important; }
-.city-flag.flag-raise { animation: flagRaise 0.5s ease-out !important; }
+.city-banner.left { left: calc(42.5% - 26px); }
+.city-banner.right { left: 57.5%; }
+/* Cloth on a rod: it leans and creases, it does not flap like a pennant. */
+@keyframes bannerSway {
+  from { transform: rotate(-2.2deg) skewX(1.4deg) scaleX(0.97); }
+  to { transform: rotate(2.2deg) skewX(-1.4deg) scaleX(1); }
+}
+/* The ceremony overrides the idle sway (and its inline tempo). */
+.city-banner.flag-lower { animation: flagLower 0.42s ease-in forwards !important; }
+.city-banner.flag-raise { animation: flagRaise 0.56s ease-out !important; }
 @keyframes flagLower {
-  to { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(26px) scaleY(0.6); opacity: 0; }
 }
 @keyframes flagRaise {
-  from { transform: translateY(30px); opacity: 0; }
+  from { transform: translateY(26px) scaleY(0.6); opacity: 0; }
 }
 
 /* The dealt card's flip, in place over its hand slot. */
