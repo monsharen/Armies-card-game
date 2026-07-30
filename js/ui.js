@@ -2427,13 +2427,19 @@ const sfx = (() => {
   function musicGain() { return LEVELS.master * LEVELS.music; }
   function fxGain() { return LEVELS.master * LEVELS.fx; }
 
-  function ac() {
-    if (muted || fxGain() <= 0) return null;
+  function rawCtx() {
     if (!ctx) {
       try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
     }
-    if (ctx.state === 'suspended') ctx.resume();
     return ctx;
+  }
+
+  function ac() {
+    if (muted || fxGain() <= 0) return null;
+    const c = rawCtx();
+    if (!c) return null;
+    if (c.state === 'suspended') c.resume();
+    return c;
   }
 
   function tone(freq, dur, type, vol, when) {
@@ -2489,7 +2495,53 @@ const sfx = (() => {
     'menu-move': 0.22, 'menu-select': 0.4, 'menu-back': 0.34, 'game-start': 0.6,
     'sheet-open': 0.3, 'sheet-close': 0.28, 'denied': 0.45, 'tutorial-advance': 0.4,
   };
+  /* Samples play through WebAudio, decoded once into a buffer. An <audio>
+   * element per shot looks simpler, but a cloned element has never been
+   * unlocked by a user gesture, and mobile Safari refuses to play those —
+   * silently. Buffers played through the (gesture-unlocked) context work
+   * everywhere, overlap freely, and take a playbackRate for the cascade.
+   * Elements stay as the second string for contexts where fetch cannot
+   * reach the files at all, such as a page opened from file://. */
+  const buffers = {};
   const bank = {};
+
+  function loadBuffer(name) {
+    if (name in buffers) return;
+    buffers[name] = undefined;                    // in flight
+    const c = rawCtx();
+    // Opened straight off disk, fetch cannot read a sibling file and would
+    // log a failure per sound; the element path works there, so use it.
+    const local = location.protocol === 'file:';
+    if (!c || local || typeof fetch !== 'function') { buffers[name] = null; loadSample(name); return; }
+    fetch('audio/sfx/' + name + '.mp3')
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error('http ' + r.status))))
+      .then(data => new Promise((res, rej) => {
+        // Safari only has the callback form; newer browsers return a promise
+        const ret = c.decodeAudioData(data, res, rej);
+        if (ret && ret.then) ret.then(res, rej);
+      }))
+      .then(buf => { buffers[name] = buf; })
+      .catch(() => { buffers[name] = null; loadSample(name); });
+  }
+
+  function playBuffer(name, rate) {
+    const buf = buffers[name];
+    if (!buf) return false;
+    const c = ac();
+    if (!c) return false;
+    try {
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = rate;
+      const g = c.createGain();
+      g.gain.value = Math.max(0, Math.min(1, SAMPLES[name] * fxGain()));
+      src.connect(g).connect(c.destination);
+      src.start();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   /* A sample is used only once it is actually loaded: until then — and
    * forever, if the file is missing — the synth voice covers that sound, so
@@ -2515,18 +2567,22 @@ const sfx = (() => {
   function sample(name, rate) {
     if (muted || fxGain() <= 0) return true; // silenced: counts as handled
     if (!(name in SAMPLES)) return false;
+    const speed = Math.max(0.25, Math.min(4,
+      (rate || 1) * (JITTER[name] ? 0.96 + Math.random() * 0.08 : 1)));
+    if (playBuffer(name, speed)) return true;
     const entry = loadSample(name);
-    if (!entry || !entry.ready) return false; // not loaded: the synth covers it
+    if (!entry || !entry.ready || entry.broken) return false; // synth covers it
     try {
       const el = entry.el.cloneNode();
       el.volume = Math.max(0, Math.min(1, SAMPLES[name] * fxGain()));
       el.preservesPitch = false;
       el.mozPreservesPitch = false;
       el.webkitPreservesPitch = false;
-      el.playbackRate = Math.max(0.25, Math.min(4,
-        (rate || 1) * (JITTER[name] ? 0.96 + Math.random() * 0.08 : 1)));
+      el.playbackRate = speed;
       const p = el.play();
-      if (p && p.catch) p.catch(() => {}); // autoplay policy before first gesture
+      // a refused element must not mean silence: remember it and let the
+      // synth take the next one
+      if (p && p.catch) p.catch(() => { entry.broken = true; });
       return true;
     } catch (e) {
       return false;
@@ -2601,7 +2657,7 @@ const sfx = (() => {
     },
     /* Pull the whole kit down at startup: 39 short clips, ~130KB, so the
      * first card of the game already has its own voice. */
-    preload() { for (const n in SAMPLES) loadSample(n); },
+    preload() { for (const n in SAMPLES) loadBuffer(n); },
     startMusic() {
       if (muted || musicGain() <= 0) return;
       const m = ensureMusic();
