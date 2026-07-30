@@ -1035,10 +1035,19 @@ function mulberry32(a) {
  * never antialiased — seeded per lane so each war's roads are its own. */
 const roadCache = new Map();
 
+/* Rows are drawn to suit the height the road will actually be stretched to,
+ * so a fullscreen lane wobbles as finely as a short one. Quantized so a
+ * resize doesn't mint a new sprite for every pixel. */
+function roadRows() {
+  const px = Math.max(240, (window.innerHeight || 700) - 300);
+  return Math.round(px / 1.8 / 20) * 20;
+}
+
 function lanePathSprite(suit) {
-  const key = suit + ':' + (ui.terrainSeed || 1);
+  const rows = roadRows();
+  const key = suit + ':' + (ui.terrainSeed || 1) + ':' + rows;
   if (roadCache.has(key)) return roadCache.get(key);
-  const W = 36, H = 140;
+  const W = 36, H = rows;
   const cv = document.createElement('canvas');
   cv.width = W;
   cv.height = H;
@@ -1148,10 +1157,17 @@ function flagSprite(suit) {
 /* Stable per-cell terrain plus whatever scars the war has left there.
  * Grass and rocks hug the slot's edges, framing the path down the middle
  * where the armies (and the debris they leave) belong. */
+/* Taller slots need more scatter or the roadside looks bare. Derived from
+ * the window, quantized so it only changes on a real resize. */
+function decorDensity() {
+  const slot = Math.max(46, ((window.innerHeight || 700) - 300) / 4);
+  return Math.min(2.6, Math.max(1, slot / 58));
+}
+
 function cellDecorHTML(key) {
   let html = '';
   const rnd = mulberry32((ui.terrainSeed || 1) + hashStr(key));
-  const n = 3 + Math.floor(rnd() * 2);
+  const n = Math.round((3 + Math.floor(rnd() * 2)) * decorDensity());
   const kinds = ['grass', 'grass2', 'rock', 'grass', 'pebble'];
   for (let i = 0; i < n; i++) {
     const left = rnd() < 0.5;
