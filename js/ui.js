@@ -1154,6 +1154,52 @@ function flagSprite(suit) {
   return url;
 }
 
+/* Kartenburg's wall banners: cloth hung from a timber rod either side of
+ * the gate, gold-trimmed, folded, with a swallowtail hem and the
+ * occupant's suit. Mercenaries hang plain grey. */
+function wallBannerSprite(suit) {
+  const key = 'wallbanner:' + (suit || 'none');
+  if (roadCache.has(key)) return roadCache.get(key);
+  const W = 13, H = 22;
+  const cv = document.createElement('canvas');
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext('2d');
+  const tint = suit ? SUIT_META[suit].tint : '#5d6675';
+  const cx = (W - 1) / 2;
+  // Cloth, with vertical folds catching and losing the light.
+  for (let y = 2; y < H; y++) {
+    const notch = y < 17 ? 0 : Math.round((y - 16) * 1.25);
+    for (let x = 0; x < W; x++) {
+      if (notch && Math.abs(x - cx) < notch) continue; // swallowtail hem
+      let c = tint;
+      if (x === 0 || x === W - 1) c = '#a8842a';        // gold trim, tarnished
+      else if (x % 5 === 3) c = shadePix(tint, -0.17);  // fold shadow
+      else if (x % 5 === 1) c = shadePix(tint, 0.1);    // fold highlight
+      ctx.fillStyle = c;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  if (suit) drawPix(ctx, PIX_SUIT[suit], Math.round(cx) - 2, 7, { 1: '#f4ecd8' });
+  // The rod it hangs from, with iron caps.
+  ctx.fillStyle = '#6b4a2c';
+  ctx.fillRect(0, 0, W, 2);
+  ctx.fillStyle = '#4a3620';
+  ctx.fillRect(0, 0, 1, 2);
+  ctx.fillRect(W - 1, 0, 1, 2);
+  const url = cv.toDataURL();
+  roadCache.set(key, url);
+  return url;
+}
+
+/* Nudge a hex color lighter or darker — cloth folds, one pixel at a time. */
+function shadePix(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v =>
+    Math.max(0, Math.min(255, Math.round(v + (amt > 0 ? (255 - v) * amt : v * amt)))));
+  return '#' + ch.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
 /* Stable per-cell terrain plus whatever scars the war has left there.
  * Grass and rocks hug the slot's edges, framing the path down the middle
  * where the armies (and the debris they leave) belong. */
@@ -1197,6 +1243,23 @@ function battleScar(key, types) {
     const cell = document.querySelector('[data-cell="' + key + '"]');
     if (cell) cell.insertAdjacentHTML('beforeend', decorImg(s.t, s.x, s.y, s.rot, 'scar scar-new'));
   }
+}
+
+/* The pair of banners flanking Kartenburg's gate. Each sways on its own
+ * tempo and phase, so the two never move together — seeded off the game's
+ * terrain seed so they stay put across re-renders. */
+function cityBannersHTML() {
+  const suit = ui.flagShown || null;
+  const rnd = mulberry32((ui.terrainSeed || 1) + hashStr('banners'));
+  let html = '';
+  for (const side of ['left', 'right']) {
+    const dur = (2.6 + rnd() * 1.5).toFixed(2);
+    const delay = (rnd() * 3.4).toFixed(2);
+    html += '<img class="city-banner ' + side + '" src="' + wallBannerSprite(suit) +
+      '" width="26" height="44" style="animation-duration:' + dur + 's;animation-delay:-' +
+      delay + 's" alt="" draggable="false">';
+  }
+  return html;
 }
 
 /* An automated army's banked supply: a staggered pile of card backs plus
@@ -1247,11 +1310,11 @@ function renderLaneBoard() {
     (g.owner ? ' style="--tint:' + SUIT_META[g.owner].tint + '"' : '') +
     ' title="Kartenburg — defends at ' + effStrength(game, g.owner, g.cards) + '">' +
     '<img class="city-wall" src="' + cityWallSprite() + '" alt="" draggable="false">' +
-    '<img class="city-flag" src="' + flagSprite(ui.flagShown || null) + '" width="30" height="45" style="animation-duration:1.25s;animation-delay:-0.6s" alt="" draggable="false">' +
+    cityBannersHTML() +
     cellDecorHTML('citadel') +
     '<span class="crown">👑</span>' + stackHTML(game, g.owner, g.cards) +
     (function () {
-      // Two real piles instead of stat lines; the flag already names the holder.
+      // Two real piles instead of stat lines; the banners already name the holder.
       const back = (dx, dy) => '<img src="' + cardSprite(null, 's') +
         '" width="32" height="44" style="transform:translate(' + dx + 'px,' + dy + 'px)" alt="" draggable="false">';
       let draw = '<span class="pile-cards">';
@@ -2150,17 +2213,21 @@ function runFx(ev) {
     }
     case 'capture': {
       showBanner('KARTENBURG FALLS!', suitOpts(ev.suit, { icon: '👑', big: true }));
-      const flag = document.querySelector('.city-flag');
-      if (flag) {
-        flag.classList.add('flag-lower');
-        setTimeout(() => {
-          ui.flagShown = ev.suit;
-          flag.src = flagSprite(ev.suit);
-          flag.classList.remove('flag-lower');
-          flag.classList.add('flag-raise');
-          sfx.flip();
-          setTimeout(() => flag.classList.remove('flag-raise'), 520);
-        }, 430);
+      // Both wall banners come down, the new colors go up — the left one
+      // first, so the changing of the guard reads as two moments.
+      const banners = Array.from(document.querySelectorAll('.city-banner'));
+      if (banners.length) {
+        banners.forEach((b, i) => {
+          setTimeout(() => b.classList.add('flag-lower'), i * 110);
+          setTimeout(() => {
+            ui.flagShown = ev.suit;
+            b.src = wallBannerSprite(ev.suit);
+            b.classList.remove('flag-lower');
+            b.classList.add('flag-raise');
+            if (!i) sfx.flip();
+            setTimeout(() => b.classList.remove('flag-raise'), 560);
+          }, 430 + i * 110);
+        });
       } else {
         ui.flagShown = ev.suit;
       }
