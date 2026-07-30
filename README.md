@@ -20,7 +20,9 @@ much supply can be traded away: 2 supply → 1 card). Armies merge on the road a
 Kartenburg: battles compare stack totals, defender wins ties, the winner loses its
 weakest card as casualties, and a defender may commit one reserve card from hand
 before any battle resolves. Kartenburg pays its holder +1 glory every turn and +2
-when a season turns — the clock that punishes waiting for perfect cards. Captures
+when a season turns — the clock that punishes waiting for perfect cards — but a
+garrison eats: holding the city costs 1 supply per turn, and an unfed garrison
+collects nothing, so sitting on the crown competes with marching and trading. Captures
 score 5, raids and defenses 1, and a repelled assault that still bloodies the
 garrison pays the attacker +1 siege glory. Later seats start with extra cards or
 banked supply to offset the first-mover advantage. Two seasons (each season ends
@@ -52,7 +54,10 @@ Chronicle panel keeps the full history), a looping theme (audio/) and a
 39-piece CC0 sound kit (audio/sfx/) named by the moment each sound plays —
 cards drawn and flipped, armies marching, the duel cascade, glory chips,
 the season turning — with a WebAudio synth underneath as a safety net, so a
-missing file degrades quietly instead of falling silent. Mute covers both. During play the UI goes full screen,
+missing file degrades quietly instead of falling silent. A sound screen sets
+overall, music and effects levels independently (the theme sits under the
+effects by default), adjustable with the d-pad while you listen, and mute
+still covers everything. During play the UI goes full screen,
 console-style: a compact HUD, the board auto-scaled to the display, the hand as
 a bottom bar, themed pixel-letter action banners (with a screen slash for
 damage), and everything else — chronicle history, sound, fullscreen, rules —

@@ -18,6 +18,10 @@
     if (document.body.classList.contains('on-title')) {
       return { el: byId('titleScreen'), key: 'title', hints: null };
     }
+    // sits above howto and the pause menu: it is opened from both
+    if (vis('soundMenu')) {
+      return { el: byId('soundMenu'), key: 'sound', hints: 'selectback', esc: () => closeSound() };
+    }
     if (vis('howto')) return { el: byId('howto'), key: 'howto', hints: 'page' };
     if (vis('actionModal')) {
       return { el: byId('actionModal'), key: 'am:' + byId('amTitle').textContent, hints: 'select' };
@@ -41,7 +45,7 @@
 
   function focusables(layer) {
     if (!layer) return [];
-    return Array.from(layer.el.querySelectorAll('button, .am-option, .am-cards .pcard'))
+    return Array.from(layer.el.querySelectorAll('button, .am-option, .am-cards .pcard, input[type="range"]'))
       .filter(el => !el.disabled && el.getClientRects().length);
   }
 
@@ -89,6 +93,19 @@
     return true;
   }
 
+  /* A focused slider takes left/right as its value, the way a console
+   * settings screen does — up/down still walks the rows. */
+  function nudgeSlider(dir) {
+    if (!focusEl || focusEl.tagName !== 'INPUT' || focusEl.type !== 'range') return false;
+    const step = Number(focusEl.step) || 1;
+    const next = Math.max(Number(focusEl.min), Math.min(Number(focusEl.max),
+      Number(focusEl.value) + dir * step));
+    if (next === Number(focusEl.value)) return true; // at the end: still handled
+    focusEl.value = next;
+    focusEl.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  }
+
   function activate() {
     const layer = activeLayer();
     if (!layer || !layer.hints) return false;
@@ -113,8 +130,12 @@
       e.preventDefault();
       return;
     }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') { if (move(1)) e.preventDefault(); }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') { if (move(-1)) e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const dir = e.key === 'ArrowRight' ? 1 : -1;
+      if (nudgeSlider(dir)) { e.preventDefault(); return; }
+      if (move(dir)) e.preventDefault();
+    } else if (e.key === 'ArrowDown') { if (move(1)) e.preventDefault(); }
+    else if (e.key === 'ArrowUp') { if (move(-1)) e.preventDefault(); }
     else if (e.key === 'Enter') { if (activate()) e.preventDefault(); }
   });
 
@@ -142,6 +163,9 @@
     if (layer.key === 'howto') {
       if (padPress('right', b(15) || p.axes[0] > 0.55)) howtoStep(1);
       if (padPress('left', b(14) || p.axes[0] < -0.55)) howtoStep(-1);
+    } else {
+      if (padPress('right', b(15) || p.axes[0] > 0.55)) { if (!nudgeSlider(1)) move(1); }
+      if (padPress('left', b(14) || p.axes[0] < -0.55)) { if (!nudgeSlider(-1)) move(-1); }
     }
     if (padPress('a', b(0))) {
       if (layer.key === 'title') enterMenu();

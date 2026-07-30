@@ -186,14 +186,44 @@ function finishGame(state) {
 
 /* ── Turn flow ────────────────────────────────────────────────────────── */
 
+/* A garrison eats. Holding Kartenburg costs one supply at the start of your
+ * turn; pay it and the city pays its tribute, fail to and the walls go
+ * unpaid and pay you nothing. It taxes sitting on the city — the cost
+ * competes directly with trading and with marching. Automated armies pay
+ * from their banked pile, so at a table it is one card either way. */
+function payUpkeep(state, army) {
+  if (army.isHuman) {
+    const idxs = supplyIndices(army);
+    if (!idxs.length) return null;
+    // spend the cheapest supply: this is not a choice the player makes, so
+    // it must never quietly eat the high card they were holding back
+    let pick = idxs[0];
+    for (const i of idxs) if (strength(army.hand[i]) < strength(army.hand[pick])) pick = i;
+    const card = army.hand.splice(pick, 1)[0];
+    state.discard.push(card);
+    return card;
+  }
+  if (army.supply <= 0) return null;
+  army.supply--;
+  return true;
+}
+
 function beginTurn(state) {
   if (state.over) return;
   const army = currentArmy(state);
   if (state.garrison.owner === army.suit) {
-    army.glory += GLORY.tribute;
-    addLog(state, 'system', '👑 ' + armyName(army.suit) + ' collects Kartenburg tribute: +' +
-      GLORY.tribute + ' glory.');
-    pushEvent(state, { type: 'tribute', suit: army.suit });
+    const paid = payUpkeep(state, army);
+    if (paid) {
+      army.glory += GLORY.tribute;
+      addLog(state, 'system', '👑 ' + armyName(army.suit) + ' feeds its garrison (1 supply) and ' +
+        'collects Kartenburg tribute: +' + GLORY.tribute + ' glory.');
+      pushEvent(state, { type: 'upkeep', suit: army.suit, card: paid === true ? null : paid });
+      pushEvent(state, { type: 'tribute', suit: army.suit });
+    } else {
+      addLog(state, 'system', '🍂 ' + armyName(army.suit) + ' cannot feed the garrison — ' +
+        'Kartenburg pays no tribute this turn.');
+      pushEvent(state, { type: 'upkeepFail', suit: army.suit });
+    }
   }
   if (army.isHuman) {
     let drawn = 0;
@@ -479,11 +509,14 @@ function march(state, from) {
   if (supplies.length < plan.cost) {
     return { ok: false, msg: 'Marching that army costs ' + plan.cost + ' supply — you have ' + supplies.length + '.' };
   }
+  const spent = [];
   for (let i = plan.cost - 1; i >= 0; i--) {
-    state.discard.push(army.hand.splice(supplies[i], 1)[0]);
+    const card = army.hand.splice(supplies[i], 1)[0];
+    state.discard.push(card);
+    spent.unshift(card);
   }
   addLog(state, 'player', armyName(army.suit) + ' spends ' + plan.cost + ' supply.');
-  pushEvent(state, { type: 'supply', suit: army.suit, count: plan.cost });
+  pushEvent(state, { type: 'supply', suit: army.suit, count: plan.cost, cards: spent });
   const pending = executePlan(state, army.suit, plan, 'human');
   if (!pending) spendAction(state);
   return { ok: true };
@@ -578,10 +611,13 @@ function trade(state) {
   const army = g.army;
   const supplies = supplyIndices(army);
   if (supplies.length < 2) return { ok: false, msg: 'Trading costs 2 supply.' };
+  const spent = [];
   for (const i of [supplies[1], supplies[0]]) {
-    state.discard.push(army.hand.splice(i, 1)[0]);
+    const card = army.hand.splice(i, 1)[0];
+    state.discard.push(card);
+    spent.unshift(card);
   }
-  pushEvent(state, { type: 'supply', suit: army.suit, count: 2 });
+  pushEvent(state, { type: 'supply', suit: army.suit, count: 2, cards: spent });
   const card = drawCard(state);
   if (card) {
     army.hand.push(card);
