@@ -44,8 +44,8 @@ seconds (the supply bank is literally a face-up pile of cards).
 
 Pixel art throughout, Balatro-inspired: every card is a hand-drawn low-res
 bitmap sprite shown at exact integer upscales, headings are rendered in a
-bitmap pixel font (with slowly waving letters on the menus), and a WebGL swirl
-shader runs at low resolution behind the table. Living cards (idle sway + 3D
+bitmap pixel font (with slowly waving letters on the menus), and everything
+sits on plain black so the battlefield is the only thing to look at. Living cards (idle sway + 3D
 cursor tilt), flight trails, hitstop freeze-frames on captures, a count-up
 final scoreboard, chronicle events that splash on screen as they happen (the
 Chronicle panel keeps the full history), a composed looping theme (audio/) with
@@ -58,7 +58,8 @@ tucked into a pause menu (Esc) and a chronicle drawer. Menus follow console
 always-visible focus ring driven by arrow keys, Enter/Esc or a connected
 gamepad (d-pad/stick, A select, B back), and a standing hint bar that says
 which buttons do what. The game view is a single interaction-first **lane
-board** on every screen (phone-shaped and centered on desktop): Kartenburg as
+board** on every screen (phone-shaped and centered on desktop, filling the
+window's full height): Kartenburg as
 a status strip on top, four vertical lanes beneath it with each army's glory
 at the lane's head, real card stacks climbing the slots toward the city, held
 hands fanned at the lane's foot, action dialogs as thumb-reach bottom sheets,
@@ -73,7 +74,6 @@ js/cards.js     — deck, suits, strengths, army names
 js/engine.js    — pure game logic, no DOM (unit-testable in Node)
 js/ui.js        — rendering, input, FX queue and sound for game.html
 js/consoleui.js — focus-driven menu navigation (keyboard + gamepad) and hint bar
-js/swirl.js     — WebGL pixel-swirl background (CSS fallback)
 fonts/          — bundled Press Start 2P (latin subset, SIL OFL) — the one in-game text face
 ```
 

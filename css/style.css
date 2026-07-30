@@ -533,22 +533,8 @@ footer { text-align: center; color: #555c69; font-size: 0.8rem; padding: 2rem 1r
 
 /* ── Balatro-inspired look & feel ───────────────────────────── */
 
-/* Swirling animated background */
-.bg-swirl { position: fixed; inset: -35%; z-index: -1; filter: blur(75px) saturate(1.25); opacity: 0.5; pointer-events: none; }
-.bg-swirl::before, .bg-swirl::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: conic-gradient(from 0deg at 38% 42%, #6d1f2c, #23306d, #1f6d58, #5a4a14, #6d1f2c);
-  animation: swirl 55s linear infinite;
-}
-.bg-swirl::after {
-  background: conic-gradient(from 180deg at 64% 58%, rgba(109,31,80,0.5), rgba(31,68,109,0.5), rgba(20,90,70,0.4), rgba(109,31,80,0.5));
-  animation: swirl 80s linear infinite reverse;
-}
-@keyframes swirl { to { transform: rotate(360deg); } }
-body { background-color: #14161d; }
+/* Plain black behind everything: the board is the only thing to look at. */
+body { background-color: #000; background-image: none; }
 
 /* Felt table with a wooden rim */
 .board-wrap {
@@ -633,23 +619,6 @@ body { background-color: #14161d; }
 .modal { animation: modalIn 0.28s cubic-bezier(0.3, 1.5, 0.6, 1); }
 @keyframes modalIn { from { transform: scale(0.82); opacity: 0; } }
 
-/* Panels get a touch of depth over the swirl */
-.panel, .board-wrap, .feature, .hero .intro { backdrop-filter: saturate(1.05); }
-
-
-/* ── WebGL pixel swirl (low-res canvas upscaled nearest-neighbor) ── */
-.swirl-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  z-index: -1;
-  display: none;
-  image-rendering: pixelated;
-  opacity: 0.55;
-}
-body.gl-swirl .swirl-canvas { display: block; }
-body.gl-swirl .bg-swirl { display: none; }
 
 /* ── Hitstop: the world freezes for a frame before big payoffs ── */
 body.hitstop #fx *,
@@ -723,7 +692,6 @@ body.pixel-mode .panel { box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4); }
 body.pixel-mode .modal { box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5); }
 body.pixel-mode .fx-flash { border-radius: 0; }
 body.pixel-mode .fx-spark { border-radius: 0; width: 8px; height: 8px; }
-body.pixel-mode .swirl-canvas { opacity: 0.65; }
 body.pixel-mode #fx .fx-fly { filter: none; }
 body.pixel-mode .cell.citadel,
 body.pixel-mode .cell.camp { border-width: 3px; }
@@ -1072,7 +1040,6 @@ body.app main { max-width: none; padding: 0; height: 100vh; height: 100dvh; }
 
 /* ── Retro title screen: black, scanlines, stars, drifting cards ── */
 body.on-title { background: #000; }
-body.on-title .swirl-canvas, body.on-title .bg-swirl { display: none !important; }
 
 #titleScreen {
   position: relative;
@@ -1556,9 +1523,6 @@ body.lane-mode .board-wrap {
 }
 body.lane-mode #board { display: block; padding: 8px 10px 4px; }
 body.lane-mode #bottomBar { flex: 1; min-height: 0; }
-body.lane-mode .hud-right .btn.slim:nth-child(2),
-body.lane-mode .hud-right .btn.slim:nth-child(3),
-body.lane-mode .hud-right .btn.slim:nth-child(4) { display: none; } /* zoom controls */
 
 .lane-city {
   display: flex;
@@ -2111,3 +2075,51 @@ body.lane-mode #bottomBar.tray-hidden { transform: translateY(calc(100% - 3px));
   image-rendering: pixelated;
 }
 #trayHandle:hover { color: #fff; }
+
+/* ── Fullscreen board: the lanes claim every pixel of the play area ───── */
+body.lane-mode .board-viewport { display: flex; flex-direction: column; }
+body.lane-mode .board-scale,
+body.lane-mode .board-wrap {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+body.lane-mode #board {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+/* the battlefield takes the leftover height; camps keep their own size so a
+   crowded camp grows instead of squashing */
+body.lane-mode .lane-cols { flex: 1 0 auto; }
+body.lane-mode .lane-path .lane-slot:not(.camp) { flex: 1 1 0; min-height: 46px; }
+body.lane-mode .lane-path .lane-slot.camp { flex: 0 0 auto; }
+/* dead space either side of the phone-shaped column is simply black */
+body.app, body.playing, body.app main { background: #000; }
+
+/* The HUD strip held nothing but a hidden brand and hidden zoom buttons —
+   a dead 14px band. Reclaim it: the chronicle and menu buttons ride in the
+   bottom-left corner, always reachable by thumb whether the tray is in or
+   out, and the board starts at the very top of the screen. */
+body.lane-mode #hud {
+  position: fixed;
+  left: 5px;
+  bottom: 3px;
+  width: auto;
+  padding: 0;
+  gap: 4px;
+  background: none;
+  border-bottom: none;
+  z-index: 60;
+}
+body.lane-mode #hud .hud-right { gap: 4px; }
+body.lane-mode #hud .btn.slim {
+  display: inline-flex;
+  background: rgba(14, 17, 22, 0.9);
+  border: 2px solid var(--line);
+  padding: 1px 5px;
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
