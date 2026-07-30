@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Kartenburg</title>
-  <link rel="stylesheet" href="css/style.css?v=20260729i">
+  <link rel="stylesheet" href="css/style.css?v=20260729k">
 </head>
 <body class="pixel-mode app on-title">
   <main>
@@ -25,7 +25,7 @@
         <span class="menu-divider"></span>
         <button class="btn" onclick="openHowto(false)"><span class="pixel-title" data-scale="2" data-color="#ffffff">How to Play</span></button>
         <button class="btn" onclick="window.open('reference.html', '_blank')"><span class="pixel-title" data-scale="2" data-color="#ffffff">Print &amp; Play</span></button>
-        <button class="btn muteBtn" onclick="toggleSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound on</span></button>
+        <button class="btn" onclick="openSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound</span></button>
       </div>
       <div class="menu-list hidden" id="menuPlayers">
         <button class="btn primary big" onclick="newGame(1)"><span class="pixel-title" data-scale="2" data-color="#ffffff">1 Player</span></button>
@@ -84,7 +84,7 @@
         <h2 class="pixel-title" data-scale="3">Paused</h2>
         <div class="pause-buttons">
           <button class="btn primary" onclick="togglePause(false)"><span class="pixel-title" data-scale="2" data-color="#ffffff">Resume</span></button>
-          <button class="btn muteBtn" onclick="toggleSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound on</span></button>
+          <button class="btn" onclick="openSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound</span></button>
           <button class="btn" onclick="toggleFullscreen()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Fullscreen</span></button>
           <button class="btn" onclick="toggleLogDrawer(); togglePause(false)"><span class="pixel-title" data-scale="2" data-color="#ffffff">Chronicle</span></button>
           <button class="btn" onclick="openHowto(true)"><span class="pixel-title" data-scale="2" data-color="#ffffff">How to Play</span></button>
@@ -93,6 +93,33 @@
       </div>
     </div>
   </main>
+
+  <div id="soundMenu" class="modal-backdrop hidden">
+    <div class="modal sound-modal">
+      <h2 class="pixel-title" data-scale="3">Sound</h2>
+      <div class="vol-rows">
+        <label class="vol-row">
+          <span class="vol-name">Overall</span>
+          <input type="range" id="volMaster" min="0" max="100" step="5" oninput="onVolume('master', this.value)">
+          <span class="vol-num" id="volMasterNum">90</span>
+        </label>
+        <label class="vol-row">
+          <span class="vol-name">Music</span>
+          <input type="range" id="volMusic" min="0" max="100" step="5" oninput="onVolume('music', this.value)">
+          <span class="vol-num" id="volMusicNum">40</span>
+        </label>
+        <label class="vol-row">
+          <span class="vol-name">Effects</span>
+          <input type="range" id="volFx" min="0" max="100" step="5" oninput="onVolume('fx', this.value)">
+          <span class="vol-num" id="volFxNum">90</span>
+        </label>
+      </div>
+      <div class="sound-actions">
+        <button class="btn muteBtn" onclick="toggleSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Sound on</span></button>
+        <button class="btn primary" onclick="closeSound()"><span class="pixel-title" data-scale="2" data-color="#ffffff">Done</span></button>
+      </div>
+    </div>
+  </div>
 
   <div id="actionModal" class="modal-backdrop hidden">
     <div class="modal action-modal">
@@ -136,10 +163,10 @@
 
   <div id="hintBar" class="hidden"></div>
 
-  <script src="js/pixeltext.js?v=20260729i"></script>
-  <script src="js/cards.js?v=20260729i"></script>
-  <script src="js/engine.js?v=20260729i"></script>
-  <script src="js/ui.js?v=20260729i"></script>
-  <script src="js/consoleui.js?v=20260729i"></script>
+  <script src="js/pixeltext.js?v=20260729k"></script>
+  <script src="js/cards.js?v=20260729k"></script>
+  <script src="js/engine.js?v=20260729k"></script>
+  <script src="js/ui.js?v=20260729k"></script>
+  <script src="js/consoleui.js?v=20260729k"></script>
 </body>
 </html>

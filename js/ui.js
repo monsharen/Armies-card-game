@@ -213,7 +213,8 @@ const TUTORIAL_STEPS = [
     hl: () => '[data-cell="citadel"]',
     when: g => g.garrison.owner === 'hearts' },
   { text: '<b>KARTENBURG IS YOURS!</b> +5 glory, and the city pays <b>+1 tribute</b> at the start ' +
-      'of each of your turns — +2 more if you hold it when the season turns. But the garrison ' +
+      'of each of your turns — +2 more if you hold it when the season turns. But a garrison eats: ' +
+      'each turn it costs you <b>1 supply</b>, and an unfed garrison pays no tribute. And it ' +
       'cannot be reinforced: it stands alone until it falls.' },
   { text: 'Beware the <b>Jacks</b>: raiders that snipe the weakest card of a road army, or ' +
       'infiltrate a camp to strike a <b>Banner (Q)</b> or <b>General (K)</b>. When <em>you</em> are ' +
@@ -281,7 +282,8 @@ const HOWTO_PAGES = [
       pcardHTML({ suit: 'spades', rank: '9', id: '9-spades' }, 'mini') +
       pcardHTML({ suit: 'diamonds', rank: '6', id: '6-diamonds' }, 'mini') + '</div></div>' +
       '<p>Kartenburg is held by mercenaries. Four armies climb their lanes toward it — camp at the bottom, gate at the top.</p>' +
-      '<p><b>Capture the city: +5 glory.</b> Hold it at the start of your turn: <b>+1 tribute</b>. ' +
+      '<p><b>Capture the city: +5 glory.</b> Hold it at the start of your turn: <b>+1 tribute</b>, ' +
+      'paid for with <b>1 supply</b> — an unfed garrison pays nothing. ' +
       'Hold it when a season turns: <b>+2</b>. Win raids and defenses: +1. ' +
       'Most glory after two seasons of the deck wins the war.</p>' +
       '<p>Later seats start stronger: extra cards (players) or banked supply (automated armies).</p>',
@@ -675,6 +677,10 @@ function revealTurn() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !document.getElementById('soundMenu').classList.contains('hidden')) {
+    closeSound();
+    return;
+  }
   if (e.key === 'Escape' && !document.getElementById('howto').classList.contains('hidden')) {
     closeHowto();
     return;
@@ -736,9 +742,33 @@ function applyTray() {
   const mt = myTurn();
   if (mt !== ui.trayWasMyTurn) {
     ui.trayWasMyTurn = mt;
-    ui.trayOpen = mt; // turn transitions override any manual choice
+    if (mt) {
+      ui.trayOpen = true;   // your turn: the hand comes back at once
+    } else {
+      holdTrayThenClose();  // your turn just ended: let the show finish first
+      return;
+    }
   }
   paintTray();
+}
+
+/* Your last action of a turn ends it immediately — a trade that spends the
+ * second action passes play before its own animation has run. Keep the hand
+ * on screen until the fx queue drains, so you can see which cards left and
+ * which arrived instead of watching the tray swallow them. */
+function holdTrayThenClose() {
+  const token = (ui.trayCloseToken || 0) + 1;
+  ui.trayCloseToken = token;
+  const deadline = Date.now() + 3000; // never hold the board hostage
+  const tryClose = () => {
+    if (ui.trayCloseToken !== token) return;   // a newer transition owns this
+    if (myTurn()) return;                      // turn came back: leave it open
+    const wait = Math.min(fxUntil - Date.now(), deadline - Date.now());
+    if (wait > 60) { setTimeout(tryClose, wait + 80); return; }
+    ui.trayOpen = false;
+    paintTray();
+  };
+  setTimeout(tryClose, 0); // after this batch's fx have been scheduled
 }
 
 function paintTray() {
@@ -1808,6 +1838,7 @@ const FX_DUR = {
   raid: 750, tribute: 420, supply: 380, toss: 320, season: 950,
   deal: 1400, garrison: 1550,
   defense: 650, reserve: 620, postraid: 780, seasonHold: 900,
+  upkeep: 380, upkeepFail: 620,
 };
 
 function playFx(events) {
@@ -2284,6 +2315,23 @@ function runFx(ev) {
       }, 430);
       break;
     }
+    case 'upkeep': {
+      // one supply goes to the garrison: show which card, when we know it
+      const html = ev.card ? pcardHTML(ev.card, 'mini') : cardBackHTML();
+      const from = ev.card ? handR : (rectOf('[data-supply="' + ev.suit + '"]') || handR);
+      flyHTML(html, from, stageTrashRect(1400), 340);
+      setTimeout(() => stageTrashLand(html), 330);
+      sfx.play('supply-spend');
+      break;
+    }
+    case 'upkeepFail': {
+      showBanner('THE GARRISON GOES HUNGRY', suitOpts(ev.suit, { icon: '🍂' }));
+      const cr = rectOf(cellSel('citadel'));
+      floatText('NO TRIBUTE', cr, 'red');
+      shake('sm');
+      sfx.play('casualty');
+      break;
+    }
     case 'tribute': {
       showBanner('TRIBUTE +' + GLORY.tribute, suitOpts(ev.suit, { icon: '👑' }));
       sfx.play('tribute');
@@ -2292,10 +2340,14 @@ function runFx(ev) {
       break;
     }
     case 'supply': {
+      // Face up when we know which cards went: paying supply should show
+      // what it cost you, not an anonymous pair of card backs.
       for (let i = 0; i < ev.count; i++) {
+        const card = ev.cards && ev.cards[i];
+        const html = card ? pcardHTML(card, 'mini') : cardBackHTML();
         setTimeout(() => {
-          flyHTML(cardBackHTML(), handR, stageTrashRect(1500), 340);
-          setTimeout(() => stageTrashLand(cardBackHTML()), 330);
+          flyHTML(html, handR, stageTrashRect(1500), 340);
+          setTimeout(() => stageTrashLand(html), 330);
         }, i * 110);
       }
       sfx.play('supply-spend');
@@ -2361,10 +2413,22 @@ function runFx(ev) {
 const sfx = (() => {
   let ctx = null;
   let muted = false;
-  try { muted = localStorage.getItem('kartenburg-muted') === '1'; } catch (e) { }
+  /* Master, music and effects levels, each 0..1 and stored separately. The
+   * theme sits under the effects by default: it is a bed, not a headline. */
+  const LEVELS = { master: 0.9, music: 0.4, fx: 0.9 };
+  try {
+    muted = localStorage.getItem('kartenburg-muted') === '1';
+    for (const k of ['master', 'music', 'fx']) {
+      const v = parseFloat(localStorage.getItem('kartenburg-vol-' + k));
+      if (v >= 0 && v <= 1) LEVELS[k] = v;
+    }
+  } catch (e) { }
+
+  function musicGain() { return LEVELS.master * LEVELS.music; }
+  function fxGain() { return LEVELS.master * LEVELS.fx; }
 
   function ac() {
-    if (muted) return null;
+    if (muted || fxGain() <= 0) return null;
     if (!ctx) {
       try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
     }
@@ -2380,7 +2444,7 @@ const sfx = (() => {
     const g = c.createGain();
     o.type = type || 'square';
     o.frequency.value = freq;
-    g.gain.setValueAtTime(vol || 0.06, t0);
+    g.gain.setValueAtTime((vol || 0.06) * fxGain(), t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
     o.connect(g).connect(c.destination);
     o.start(t0);
@@ -2400,7 +2464,7 @@ const sfx = (() => {
     f.type = 'lowpass';
     f.frequency.value = cutoff || 900;
     const g = c.createGain();
-    g.gain.value = vol || 0.12;
+    g.gain.value = (vol || 0.12) * fxGain();
     src.connect(f).connect(g).connect(c.destination);
     src.start();
   }
@@ -2449,13 +2513,13 @@ const sfx = (() => {
   const JITTER = { 'card-draw': 1, 'card-flip': 1, 'card-place': 1, 'card-discard': 1, 'march-step': 1 };
 
   function sample(name, rate) {
-    if (muted) return true;         // muted counts as handled: stay silent
+    if (muted || fxGain() <= 0) return true; // silenced: counts as handled
     if (!(name in SAMPLES)) return false;
     const entry = loadSample(name);
     if (!entry || !entry.ready) return false; // not loaded: the synth covers it
     try {
       const el = entry.el.cloneNode();
-      el.volume = Math.min(1, SAMPLES[name]);
+      el.volume = Math.max(0, Math.min(1, SAMPLES[name] * fxGain()));
       el.preservesPitch = false;
       el.mozPreservesPitch = false;
       el.webkitPreservesPitch = false;
@@ -2508,9 +2572,9 @@ const sfx = (() => {
     if (!music) {
       music = new Audio('audio/main-theme.mp3');
       music.loop = true;
-      music.volume = 0.55;
       music.preload = 'auto';
     }
+    music.volume = Math.max(0, Math.min(1, musicGain()));
     return music;
   }
 
@@ -2523,11 +2587,23 @@ const sfx = (() => {
       return muted;
     },
     isMuted() { return muted; },
+    /* Levels: 'master' | 'music' | 'fx', each 0..1. Music re-levels live so
+     * the slider is audible as you drag it; effects pick it up on next play. */
+    level(kind) { return LEVELS[kind]; },
+    setLevel(kind, v) {
+      if (!(kind in LEVELS)) return;
+      LEVELS[kind] = Math.max(0, Math.min(1, v));
+      try { localStorage.setItem('kartenburg-vol-' + kind, String(LEVELS[kind])); } catch (e) { }
+      if (music) music.volume = Math.max(0, Math.min(1, musicGain()));
+      if (kind !== 'music' && !muted) this.play('menu-move'); // audition the change
+      if (musicGain() <= 0) this.stopMusic();
+      else if (!muted && !document.body.classList.contains('on-title')) this.startMusic();
+    },
     /* Pull the whole kit down at startup: 39 short clips, ~130KB, so the
      * first card of the game already has its own voice. */
     preload() { for (const n in SAMPLES) loadSample(n); },
     startMusic() {
-      if (muted) return;
+      if (muted || musicGain() <= 0) return;
       const m = ensureMusic();
       if (m.paused) m.play().catch(() => {}); // autoplay policy: retried on next gesture
     },
@@ -2556,10 +2632,45 @@ function updateMuteBtns() {
 function toggleSound() {
   sfx.toggle();
   updateMuteBtns();
+  syncVolumeUI();
+}
+
+/* ── Sound settings: three levels, adjustable while you listen ─────────── */
+
+function openSound() {
+  syncVolumeUI();
+  document.getElementById('soundMenu').classList.remove('hidden');
+  sfx.play('sheet-open');
+}
+
+function closeSound() {
+  document.getElementById('soundMenu').classList.add('hidden');
+  sfx.play('sheet-close');
+}
+
+function onVolume(kind, value) {
+  sfx.setLevel(kind, Number(value) / 100);
+  syncVolumeUI();
+}
+
+function syncVolumeUI() {
+  const rows = { master: 'volMaster', music: 'volMusic', fx: 'volFx' };
+  for (const kind in rows) {
+    const el = document.getElementById(rows[kind]);
+    if (!el) continue;
+    const pct = Math.round(sfx.level(kind) * 100);
+    if (document.activeElement !== el) el.value = pct;
+    const num = document.getElementById(rows[kind] + 'Num');
+    if (num) num.textContent = sfx.isMuted() ? '—' : pct;
+    el.disabled = sfx.isMuted();
+  }
+  const panel = document.getElementById('soundMenu');
+  if (panel) panel.classList.toggle('all-muted', sfx.isMuted());
 }
 
 document.addEventListener('DOMContentLoaded', () => {
   updateMuteBtns();
+  syncVolumeUI();
   sfx.preload();
   document.body.classList.add('pixel-mode');
   document.body.classList.add('lane-mode'); // the lane view is the only view
