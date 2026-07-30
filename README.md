@@ -48,8 +48,11 @@ bitmap pixel font (with slowly waving letters on the menus), and everything
 sits on plain black so the battlefield is the only thing to look at. Living cards (idle sway + 3D
 cursor tilt), flight trails, hitstop freeze-frames on captures, a count-up
 final scoreboard, chronicle events that splash on screen as they happen (the
-Chronicle panel keeps the full history), a composed looping theme (audio/) with
-procedural WebAudio sound effects and a mute toggle. During play the UI goes full screen,
+Chronicle panel keeps the full history), a looping theme (audio/) and a
+39-piece CC0 sound kit (audio/sfx/) named by the moment each sound plays —
+cards drawn and flipped, armies marching, the duel cascade, glory chips,
+the season turning — with a WebAudio synth underneath as a safety net, so a
+missing file degrades quietly instead of falling silent. Mute covers both. During play the UI goes full screen,
 console-style: a compact HUD, the board auto-scaled to the display, the hand as
 a bottom bar, themed pixel-letter action banners (with a screen slash for
 damage), and everything else — chronicle history, sound, fullscreen, rules —
@@ -75,6 +78,7 @@ js/engine.js    — pure game logic, no DOM (unit-testable in Node)
 js/ui.js        — rendering, input, FX queue and sound for game.html
 js/consoleui.js — focus-driven menu navigation (keyboard + gamepad) and hint bar
 fonts/          — bundled Press Start 2P (latin subset, SIL OFL) — the one in-game text face
+audio/          — the looping theme, plus sfx/ (CC0 kit; see audio/sfx/CREDITS.md)
 ```
 
 The engine has no DOM dependencies, so full games can be simulated headlessly in Node

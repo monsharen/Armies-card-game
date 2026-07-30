@@ -94,12 +94,12 @@ function enterMenu() {
   const title = document.getElementById('titleScreen');
   if (!title || title.classList.contains('hidden') || title.dataset.entering) return;
   title.dataset.entering = '1';
-  sfx.coin();
+  sfx.play('game-start');
   title.classList.add('hidden');
   document.body.classList.remove('on-title');
   document.getElementById('setup').classList.remove('hidden');
   sfx.startMusic();
-  sfx.draw();
+  sfx.play('menu-select');
 }
 
 /* Retro title dressing: twinkling pixel stars and drifting card backs.
@@ -129,7 +129,7 @@ function buildTitleFx(holderId) {
 function showPlayerSelect() {
   document.getElementById('menuMain').classList.add('hidden');
   document.getElementById('menuPlayers').classList.remove('hidden');
-  sfx.flip();
+  sfx.play('menu-select');
 }
 
 function showMainMenu() {
@@ -238,7 +238,7 @@ function tutNext() {
   const step = TUTORIAL_STEPS[TUT.step];
   if (step && step.last) { tutSkip(); return; }
   TUT.step++;
-  sfx.flip();
+  sfx.play('tutorial-advance');
   render();
 }
 
@@ -258,7 +258,7 @@ function renderTutorial() {
   // Advance through any action steps whose condition is already met.
   while (TUT.step < TUTORIAL_STEPS.length) {
     const s = TUTORIAL_STEPS[TUT.step];
-    if (s.when && s.when(game)) { TUT.step++; sfx.coin(); continue; }
+    if (s.when && s.when(game)) { TUT.step++; sfx.play('tutorial-advance'); continue; }
     break;
   }
   if (TUT.step >= TUTORIAL_STEPS.length) { tutSkip(); return; }
@@ -364,7 +364,7 @@ function renderHowto() {
 
 function howtoStep(dir) {
   ui.howtoPage = Math.max(0, Math.min(HOWTO_PAGES.length - 1, ui.howtoPage + dir));
-  sfx.flip();
+  sfx.play('menu-move');
   renderHowto();
 }
 
@@ -439,7 +439,7 @@ function dealCardToHand(suit) {
   const slot = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
   const pc = slot && slot.querySelector('.pcard');
   const dest = pc ? pc.getBoundingClientRect() : drawDest(suit);
-  sfx.draw();
+  sfx.play('card-draw');
   flyHTML(cardBackHTML(), stageDeckRect(1300), dest, 360, '', { land: () => {
     ui.dealFlight[suit] = Math.max(0, (ui.dealFlight[suit] || 1) - 1);
     ui.pendingHide[suit] = Math.max(0, (ui.pendingHide[suit] || 0) - 1);
@@ -457,7 +457,7 @@ function dealCardToHand(suit) {
     flip.innerHTML = '<div class="fx-flip3d"><div class="face back">' + cardBackHTML() +
       '</div><div class="face front">' + pcardHTML(card) + '</div></div>';
     fxRoot().appendChild(flip);
-    sfx.flip();
+    sfx.play('card-flip');
     setTimeout(() => {
       const s3 = document.querySelector('#handArea .hand-slot[data-slot="' + idx + '"]');
       if (s3) s3.classList.remove('deal-hide');
@@ -756,7 +756,7 @@ function paintTray() {
 function toggleTray() {
   ui.trayOpen = !ui.trayOpen;
   paintTray();
-  sfx.tick();
+  sfx.play(ui.trayOpen ? 'sheet-open' : 'sheet-close');
 }
 
 function renderTurnBanner() {
@@ -778,7 +778,7 @@ function renderTurnBanner() {
         showBanner(SUIT_META[suit].army + ' - YOUR TURN', {
           tint: SUIT_META[suit].tint, icon: SUIT_META[suit].symbol, big: true,
         });
-        sfx.draw();
+        sfx.play('menu-select');
       };
       setTimeout(tryShow, 0); // after this batch's fx are scheduled
     }
@@ -810,7 +810,7 @@ function spawnBanner(text, opts) {
     (opts.icon ? '<span class="b-icon">' + opts.icon + '</span>' : '') +
     '</span>';
   fxRoot().appendChild(el);
-  if (opts.variant === 'slash') sfx.slash();
+  if (opts.variant === 'slash') sfx.play('clash');
   setTimeout(() => el.remove(), opts.big ? 1750 : 1500);
 }
 
@@ -1686,7 +1686,10 @@ function renderActionModal() {
   if (show && cancelable) {
     body += '<div class="am-cancel"><button class="btn" onclick="cancelModal()">Cancel</button></div>';
   }
+  const wasShown = !modal.classList.contains('hidden');
   modal.classList.toggle('hidden', !show);
+  // Sheets announce themselves only on the transition, not on every render.
+  if (show !== wasShown) sfx.play(show ? 'sheet-open' : 'sheet-close');
   if (show) {
     document.getElementById('amTitle').innerHTML = title;
     document.getElementById('amBody').innerHTML = body;
@@ -1756,7 +1759,7 @@ function showEndModal() {
         td.classList.remove('bump');
         void td.offsetWidth;
         td.classList.add('bump');
-        sfx.tick();
+        sfx.play('score-tick');
       }
       if (p < 1) requestAnimationFrame(step);
     }
@@ -1764,7 +1767,7 @@ function showEndModal() {
   });
   setTimeout(() => {
     document.querySelectorAll('#endTable .winner-row').forEach(tr => tr.classList.add('winner-reveal'));
-    sfx.fanfare();
+    sfx.play('war-end');
   }, lastEnd + 150);
   for (let i = 0; i < 6; i++) {
     setTimeout(() => {
@@ -1781,10 +1784,15 @@ function hideEndModal() {
 /* ── Toast ────────────────────────────────────────────────────────────── */
 
 let toastTimer = null;
+let lastDeniedAt = 0;
+
 function toast(msg) {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.classList.add('show');
+  // Mashing a refused action shouldn't machine-gun the refusal.
+  const now = Date.now();
+  if (now - lastDeniedAt > 400) { lastDeniedAt = now; sfx.play('denied'); }
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
 }
@@ -1954,7 +1962,7 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
     '</div><div class="face front">' + pcardHTML(card) + '</div></div>';
   fxRoot().appendChild(rev);
   popSel('#deckPile');
-  sfx.flip();
+  sfx.play('card-flip');
   setTimeout(() => {
     const fromR = rev.getBoundingClientRect();
     rev.remove();
@@ -1962,7 +1970,7 @@ function revealFromDeck(card, destSel, holdMs, onLand) {
       flyHTML(pcardHTML(card, 'mini'), fromR, stageTrashRect(1500), 380);
       setTimeout(() => {
         stageTrashLand(pcardHTML(card, 'mini'));
-        sfx.whoosh();
+        sfx.play('card-discard');
         if (onLand) onLand();
       }, 380);
     } else if (destSel) {
@@ -2048,7 +2056,7 @@ function gloryFly(suit, amount, fromR) {
       void c.offsetWidth;
       c.classList.add('chip-pop');
     }
-    sfx.coin();
+    sfx.play('glory-coin');
   }, 500);
 }
 
@@ -2121,7 +2129,9 @@ function battleDuel(ev) {
         setTimeout(() => stageTrashLand(pcardHTML(c, 'mini')), 370);
       }, 350 + i * 140);
     });
-    sfx.thud();
+    sfx.play('clash');
+    setTimeout(() => sfx.play(ev.won ? 'walls-breached' : 'repelled'), 180);
+    if (fallen.length) setTimeout(() => sfx.play('casualty'), 420);
     if (!ev.won) {
       showBanner('ASSAULT REPELLED', { tint: '#d06050', variant: 'slash' });
       // Battered walls pay the attacker; a clean repel pays the holder.
@@ -2147,10 +2157,12 @@ function runFx(ev) {
     case 'flip': {
       if (ev.action === 'muster' || ev.action === 'post') {
         const destSel = cellSel('camp', ev.suit);
-        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.place(); });
+        const voice = ev.action !== 'post' ? 'muster'
+          : ev.card.rank === 'Q' ? 'banner-raise' : 'general-command';
+        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.play(voice); });
       } else if (ev.action === 'supply-bank') {
         const destSel = '[data-supply="' + ev.suit + '"]';
-        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.place(); });
+        revealFromDeck(ev.card, destSel, 620, () => { popSel(destSel); sfx.play('card-place'); });
       } else if (ev.action === 'supply-march') {
         revealFromDeck(ev.card, 'trash', 620, null); // spent at once
       } else {
@@ -2173,7 +2185,7 @@ function runFx(ev) {
           revealFromDeck(card, cellSel('citadel'), 520, i === ev.cards.length - 1 ? () => {
             popSel(cellSel('citadel'));
             sparks(rectOf(cellSel('citadel')), GOLD_SPARKS, 12);
-            sfx.place();
+            sfx.play('banner-hoist');
           } : null);
         }, i * 700);
       });
@@ -2190,8 +2202,11 @@ function runFx(ev) {
       }
       const destSel = cellSel('camp', ev.suit);
       if (!ev.npc) {
+        const voice = ev.target === 'post'
+          ? (ev.card.rank === 'Q' ? 'banner-raise' : 'general-command')
+          : ev.target === 'new' ? 'muster' : 'card-place';
         flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, rectOf(destSel), 400);
-        setTimeout(() => { popSel(destSel); sfx.place(); }, 380);
+        setTimeout(() => { popSel(destSel); sfx.play(voice); }, 380);
       }
       break;
     }
@@ -2203,7 +2218,10 @@ function runFx(ev) {
       const destSel = ev.dest.zone === 'citadel' ? cellSel('citadel') : cellSel('road', ev.suit, ev.dest.idx);
       const html = '<div class="stack">' + ev.cards.map(c => pcardHTML(c, 'mini')).join('') + '</div>';
       flyHTML(html, rectOf(fromSel), rectOf(destSel), 460);
-      sfx.whoosh();
+      sfx.play(ev.kind === 'merge' ? 'army-merge' : ev.kind === 'assault' ? 'assault-charge' : 'march-step');
+      if (ev.kind === 'march' && ev.dest.zone === 'road' && ev.dest.idx === ROAD_LEN - 1) {
+        setTimeout(() => sfx.play('gate-reached'), 430);
+      }
       if (ev.dest.zone !== 'citadel') setTimeout(() => popSel(destSel), 440);
       break;
     }
@@ -2224,7 +2242,7 @@ function runFx(ev) {
             b.src = wallBannerSprite(ev.suit);
             b.classList.remove('flag-lower');
             b.classList.add('flag-raise');
-            if (!i) sfx.flip();
+            if (!i) sfx.play('banner-hoist');
             setTimeout(() => b.classList.remove('flag-raise'), 560);
           }, 430 + i * 110);
         });
@@ -2240,7 +2258,7 @@ function runFx(ev) {
         sparks(r, GOLD_SPARKS, 26);
         floatText('+' + GLORY.capture + ' 🏅 KARTENBURG FALLS!', r, 'gold big');
         gloryFly(ev.suit, GLORY.capture, r);
-        sfx.fanfare();
+        sfx.play('capture-fanfare');
       }, 100);
       break;
     }
@@ -2250,6 +2268,7 @@ function runFx(ev) {
       const tr = rectOf(targetSel);
       const src = game.armies[ev.attacker].isHuman ? (handR || tr) : stageDeckRect(700);
       flyHTML(pcardHTML(ev.jack), src, tr, 420, 'spin');
+      sfx.play('raid-ride');
       setTimeout(() => {
         flashAt(tr);
         shake('sm');
@@ -2257,7 +2276,7 @@ function runFx(ev) {
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', tr, ev.won ? 'red big' : 'gold');
         gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, tr);
         battleScar('road-' + ev.targetSuit + '-' + ev.roadIdx, ev.won ? ['blood', 'sword'] : ['blood', 'spear']);
-        sfx.thud();
+        sfx.play(ev.won ? 'raid-strike' : 'repelled');
         setTimeout(() => { // raiders withdraw: the jack lands on the heap
           flyHTML(pcardHTML(ev.jack, 'mini'), tr, stageTrashRect(1500), 360);
           setTimeout(() => stageTrashLand(pcardHTML(ev.jack, 'mini')), 350);
@@ -2267,6 +2286,7 @@ function runFx(ev) {
     }
     case 'tribute': {
       showBanner('TRIBUTE +' + GLORY.tribute, suitOpts(ev.suit, { icon: '👑' }));
+      sfx.play('tribute');
       const r = rectOf(cellSel('citadel'));
       gloryFly(ev.suit, GLORY.tribute, r);
       break;
@@ -2278,13 +2298,13 @@ function runFx(ev) {
           setTimeout(() => stageTrashLand(cardBackHTML()), 330);
         }, i * 110);
       }
-      sfx.whoosh();
+      sfx.play('supply-spend');
       break;
     }
     case 'toss': {
       flyHTML(pcardHTML(ev.card, 'mini'), handR, stageTrashRect(1500), 320);
       setTimeout(() => stageTrashLand(pcardHTML(ev.card, 'mini')), 310);
-      sfx.whoosh();
+      sfx.play('card-discard');
       break;
     }
     case 'season': {
@@ -2293,7 +2313,7 @@ function runFx(ev) {
       fxRoot().appendChild(el);
       setTimeout(() => el.remove(), 950);
       showBanner('SEASON ' + ev.season + ' - THE FALLEN RETURN', { tint: '#4c7a3d', icon: '🌱', big: true });
-      sfx.shuffleSound();
+      sfx.play('season-turn');
       break;
     }
     case 'seasonHold': {
@@ -2301,19 +2321,19 @@ function runFx(ev) {
       const r = rectOf(cellSel('citadel'));
       sparks(r, GOLD_SPARKS, 18);
       gloryFly(ev.suit, GLORY.season, r);
-      sfx.fanfare();
+      sfx.play('crown-endures');
       break;
     }
     case 'defense': {
       showBanner('TO ARMS!', suitOpts(ev.suit, { icon: '🛡️' }));
-      sfx.thud();
+      sfx.play('to-arms');
       break;
     }
     case 'reserve': {
       showBanner('A RESERVE JOINS THE LINE', suitOpts(ev.suit, { icon: '🛡️' }));
       flyHTML(pcardHTML(ev.card, 'mini'), handR || deckR, stageTrashRect(1500), 380);
       setTimeout(() => stageTrashLand(pcardHTML(ev.card, 'mini')), 370);
-      sfx.place();
+      sfx.play('reserve-commit');
       break;
     }
     case 'postraid': {
@@ -2329,7 +2349,7 @@ function runFx(ev) {
         floatText(ev.won ? '💀 +1 🏅' : '🛡️ +1 🏅', cr, ev.won ? 'red big' : 'gold');
         gloryFly(ev.won ? ev.attacker : ev.targetSuit, GLORY.battle, cr);
         battleScar('camp-' + ev.targetSuit, ev.won ? ['blood', 'helmet'] : ['blood', 'spear']);
-        sfx.thud();
+        sfx.play(ev.won ? 'raid-strike' : 'repelled');
       }, 430);
       break;
     }
@@ -2385,7 +2405,104 @@ const sfx = (() => {
     src.start();
   }
 
-  // The score: a composed looping track (sfx stay procedural).
+  /* ── Sampled kit (CC0, audio/sfx) with the synth as the safety net ────
+   * Each sound is named for the moment it plays, so a file can be swapped
+   * without touching code. Anything that fails to load falls through to the
+   * procedural voice below, so the game is never silent. Playback uses
+   * HTMLAudioElement clones: they overlap freely, work from file:// as well
+   * as over http, and take a playbackRate for the rising duel cascade. */
+  const SAMPLES = {
+    'card-draw': 0.3, 'card-flip': 0.34, 'card-place': 0.36, 'card-discard': 0.3,
+    'supply-spend': 0.3, 'deck-shuffle': 0.5,
+    'march-step': 0.42, 'army-merge': 0.45, 'muster': 0.42, 'banner-raise': 0.45,
+    'general-command': 0.5, 'gate-reached': 0.45,
+    'assault-charge': 0.6, 'duel-tick': 0.3, 'clash': 0.6, 'walls-breached': 0.7,
+    'repelled': 0.6, 'casualty': 0.4, 'raid-ride': 0.5, 'raid-strike': 0.5,
+    'to-arms': 0.6, 'reserve-commit': 0.5,
+    'glory-coin': 0.4, 'tribute': 0.45, 'capture-fanfare': 0.75, 'crown-endures': 0.65,
+    'banner-lower': 0.4, 'banner-hoist': 0.45,
+    'season-turn': 0.6, 'war-end': 0.8, 'score-tick': 0.28,
+    'menu-move': 0.22, 'menu-select': 0.4, 'menu-back': 0.34, 'game-start': 0.6,
+    'sheet-open': 0.3, 'sheet-close': 0.28, 'denied': 0.45, 'tutorial-advance': 0.4,
+  };
+  const bank = {};
+
+  /* A sample is used only once it is actually loaded: until then — and
+   * forever, if the file is missing — the synth voice covers that sound, so
+   * the kit degrades quietly instead of dropping the first of each. */
+  function loadSample(name) {
+    if (name in bank) return bank[name];
+    const el = new Audio('audio/sfx/' + name + '.mp3');
+    el.preload = 'auto';
+    const entry = { el, ready: false };
+    const ok = () => { entry.ready = true; };
+    el.addEventListener('loadeddata', ok);
+    el.addEventListener('canplaythrough', ok);
+    el.addEventListener('error', () => { bank[name] = null; });
+    bank[name] = entry;
+    return entry;
+  }
+
+  /* Repeated sounds (a hand of seven dealing one card at a time) turn into a
+   * machine gun when every shot is identical — a touch of pitch jitter is
+   * enough to break the pattern. */
+  const JITTER = { 'card-draw': 1, 'card-flip': 1, 'card-place': 1, 'card-discard': 1, 'march-step': 1 };
+
+  function sample(name, rate) {
+    if (muted) return true;         // muted counts as handled: stay silent
+    if (!(name in SAMPLES)) return false;
+    const entry = loadSample(name);
+    if (!entry || !entry.ready) return false; // not loaded: the synth covers it
+    try {
+      const el = entry.el.cloneNode();
+      el.volume = Math.min(1, SAMPLES[name]);
+      el.preservesPitch = false;
+      el.mozPreservesPitch = false;
+      el.webkitPreservesPitch = false;
+      el.playbackRate = Math.max(0.25, Math.min(4,
+        (rate || 1) * (JITTER[name] ? 0.96 + Math.random() * 0.08 : 1)));
+      const p = el.play();
+      if (p && p.catch) p.catch(() => {}); // autoplay policy before first gesture
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /* The original procedural voices, kept as the safety net under every
+   * sampled sound (and as the whole kit if audio/sfx ever goes missing). */
+  const V = {
+    tick: () => tone(980, 0.03, 'square', 0.028),
+    ping: r => { const f = 540 * (r || 1); tone(f, 0.07, 'triangle', 0.06); tone(f * 2, 0.05, 'sine', 0.022, 0.01); },
+    slash: () => { noise(0.1, 0.16, 3200); tone(1400, 0.06, 'sawtooth', 0.05); tone(500, 0.1, 'sawtooth', 0.05, 0.05); },
+    draw: () => tone(620, 0.07, 'triangle', 0.05),
+    flip: () => { tone(440, 0.05, 'triangle', 0.05); tone(660, 0.06, 'triangle', 0.04, 0.05); },
+    place: () => { tone(200, 0.07, 'square', 0.06); tone(300, 0.06, 'square', 0.045, 0.04); },
+    whoosh: () => noise(0.16, 0.07, 1400),
+    thud: () => { noise(0.14, 0.2, 500); tone(85, 0.16, 'sine', 0.18); },
+    coin: () => { tone(880, 0.06, 'triangle', 0.055); tone(1318, 0.1, 'triangle', 0.045, 0.06); },
+    fanfare: () => [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.13, 'square', 0.055, i * 0.09)),
+    shuffle: () => { for (let i = 0; i < 5; i++) setTimeout(() => noise(0.05, 0.06, 2200), i * 70); },
+    buzz: () => { tone(150, 0.13, 'square', 0.05); tone(110, 0.13, 'square', 0.05, 0.06); },
+  };
+  const FALLBACK = {
+    'card-draw': V.draw, 'card-flip': V.flip, 'card-place': V.place,
+    'card-discard': V.whoosh, 'supply-spend': V.whoosh, 'deck-shuffle': V.shuffle,
+    'march-step': V.place, 'army-merge': V.place, 'muster': V.place,
+    'banner-raise': V.coin, 'general-command': V.thud, 'gate-reached': V.coin,
+    'assault-charge': V.slash, 'duel-tick': V.ping, 'clash': V.thud,
+    'walls-breached': V.fanfare, 'repelled': V.thud, 'casualty': V.whoosh,
+    'raid-ride': V.whoosh, 'raid-strike': V.slash, 'to-arms': V.thud,
+    'reserve-commit': V.place,
+    'glory-coin': V.coin, 'tribute': V.coin, 'capture-fanfare': V.fanfare,
+    'crown-endures': V.fanfare, 'banner-lower': V.whoosh, 'banner-hoist': V.coin,
+    'season-turn': V.shuffle, 'war-end': V.fanfare, 'score-tick': V.tick,
+    'menu-move': V.tick, 'menu-select': V.coin, 'menu-back': V.tick,
+    'game-start': V.coin, 'sheet-open': V.tick, 'sheet-close': V.tick,
+    'denied': V.buzz, 'tutorial-advance': V.coin,
+  };
+
+  // The score: a composed looping track.
   let music = null;
   function ensureMusic() {
     if (!music) {
@@ -2406,6 +2523,9 @@ const sfx = (() => {
       return muted;
     },
     isMuted() { return muted; },
+    /* Pull the whole kit down at startup: 39 short clips, ~130KB, so the
+     * first card of the game already has its own voice. */
+    preload() { for (const n in SAMPLES) loadSample(n); },
     startMusic() {
       if (muted) return;
       const m = ensureMusic();
@@ -2414,22 +2534,16 @@ const sfx = (() => {
     stopMusic() {
       if (music && !music.paused) music.pause();
     },
-    tick() { tone(980, 0.03, 'square', 0.028); },
-    // Rising-pitch scoring ping: each chip in a cascade sounds higher.
-    ping(step) {
-      const f = 540 * Math.pow(1.07, step);
-      tone(f, 0.07, 'triangle', 0.06);
-      tone(f * 2, 0.05, 'sine', 0.022, 0.01);
+    /* Play a moment by name. Falls back to the synth voice when the sample
+     * is missing, so every call site can name what happened rather than
+     * which noise to make. */
+    play(name, rate) {
+      if (sample(name, rate)) return;
+      const fb = FALLBACK[name];
+      if (fb) fb(rate);
     },
-    slash() { noise(0.1, 0.16, 3200); tone(1400, 0.06, 'sawtooth', 0.05); tone(500, 0.1, 'sawtooth', 0.05, 0.05); },
-    draw() { tone(620, 0.07, 'triangle', 0.05); },
-    flip() { tone(440, 0.05, 'triangle', 0.05); tone(660, 0.06, 'triangle', 0.04, 0.05); },
-    place() { tone(200, 0.07, 'square', 0.06); tone(300, 0.06, 'square', 0.045, 0.04); },
-    whoosh() { noise(0.16, 0.07, 1400); },
-    thud() { noise(0.14, 0.2, 500); tone(85, 0.16, 'sine', 0.18); },
-    coin() { tone(880, 0.06, 'triangle', 0.055); tone(1318, 0.1, 'triangle', 0.045, 0.06); },
-    fanfare() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.13, 'square', 0.055, i * 0.09)); },
-    shuffleSound() { for (let i = 0; i < 5; i++) setTimeout(() => noise(0.05, 0.06, 2200), i * 70); },
+    // Rising-pitch cascade: each card totalled in a duel sounds higher.
+    ping(step) { this.play('duel-tick', Math.pow(1.06, step || 0)); },
   };
 })();
 
@@ -2446,6 +2560,7 @@ function toggleSound() {
 
 document.addEventListener('DOMContentLoaded', () => {
   updateMuteBtns();
+  sfx.preload();
   document.body.classList.add('pixel-mode');
   document.body.classList.add('lane-mode'); // the lane view is the only view
   const title = document.getElementById('titleScreen');

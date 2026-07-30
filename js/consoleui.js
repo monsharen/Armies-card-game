@@ -72,6 +72,11 @@
     return layer;
   }
 
+  /* The kit lives in ui.js; guard so consoleui keeps working on its own. */
+  function say(name) {
+    if (typeof sfx !== 'undefined' && sfx.play) sfx.play(name);
+  }
+
   function move(dir) {
     const layer = activeLayer();
     if (!layer || !layer.hints) return false;
@@ -80,6 +85,7 @@
     let idx = list.indexOf(focusEl);
     idx = idx === -1 ? (dir > 0 ? 0 : list.length - 1) : (idx + dir + list.length) % list.length;
     setFocus(list[idx]);
+    say('menu-move');
     return true;
   }
 
@@ -88,6 +94,7 @@
     if (!layer || !layer.hints) return false;
     const target = (focusEl && focusEl.getClientRects().length) ? focusEl : focusables(layer)[0];
     if (!target) return false;
+    say('menu-select');
     target.click();
     return true;
   }
@@ -95,7 +102,7 @@
   document.addEventListener('keydown', e => {
     const layer = refresh();
     if (!layer) return;
-    if (e.key === 'Escape' && layer.esc) { layer.esc(); e.preventDefault(); return; }
+    if (e.key === 'Escape' && layer.esc) { say('menu-back'); layer.esc(); e.preventDefault(); return; }
     if (layer.key === 'title') {
       if (e.key === 'Enter') { enterMenu(); e.preventDefault(); }
       return;
@@ -141,6 +148,7 @@
       else activate();
     }
     if (padPress('b', b(1))) {
+      say('menu-back');
       if (layer.esc) layer.esc();
       else document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     }
